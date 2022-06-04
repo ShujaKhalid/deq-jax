@@ -2,7 +2,8 @@ from typing import Callable, NamedTuple, Union
 
 import jax
 import jax.numpy as jnp
-from jax import partial, lax
+from jax import lax
+from functools import partial
 
 
 class _BroydenResults(NamedTuple):

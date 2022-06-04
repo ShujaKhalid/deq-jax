@@ -106,7 +106,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
     transformer = model.Transformer(
         num_heads=num_heads, num_layers=num_layers, dropout_rate=dropout_rate
     )  
-    transformer_pure = hk.transform(transformer)
+    transformer = hk.transform(transformer)
 
     if (DEQ_FLAG):
       import deq
@@ -114,10 +114,10 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
       
       # Define a callable function for ease of access downstream
       def f(*args):
-        return transformer_pure.apply(*args)
+        return transformer.apply(*args)
       z_star = output_embeddings = deq(f, x, max_iter, input_mask, is_training)
     else:
-      z_star = output_embeddings = transformer_pure(x, input_mask, is_training)
+      z_star = output_embeddings = transformer(x, input_mask, is_training)
 
     print("output_embeddings.shape: {}".format(z_star.shape))
 
