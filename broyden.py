@@ -44,6 +44,7 @@ class _BroydenResults(NamedTuple):
 
 _einsum = partial(jnp.einsum, precision=lax.Precision.HIGHEST)
 
+
 def rmatvec(Us: jnp.ndarray, VTs: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
     # Compute x^T(-I + UV^T)
     # x: (N, 2d, L')
@@ -52,7 +53,9 @@ def rmatvec(Us: jnp.ndarray, VTs: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
     if Us.size == 0:
         return -x
     xTU = _einsum('bij, bijd -> bd', x, Us)  # (N, threshold)
-    return -x + _einsum('bd, bdij -> bij', xTU, VTs)  # (N, 2d, L'), but should really be (N, 1, (2d*L'))
+    # (N, 2d, L'), but should really be (N, 1, (2d*L'))
+    return -x + _einsum('bd, bdij -> bij', xTU, VTs)
+
 
 def matvec(Us: jnp.ndarray, VTs: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
     # Compute (-I + UV^T)x
@@ -62,21 +65,25 @@ def matvec(Us: jnp.ndarray, VTs: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
     if Us.size == 0:
         return -x
     VTx = _einsum('bdij, bij -> bd', VTs, x)  # (N, threshold)
-    return -x + _einsum('bijd, bd -> bij', Us, VTx)  # (N, 2d, L'), but should really be (N, (2d*L'), 1)
+    # (N, 2d, L'), but should really be (N, (2d*L'), 1)
+    return -x + _einsum('bijd, bd -> bij', Us, VTx)
 
 
 def update(delta_x, delta_gx, Us, VTs, n_step):
     # Add column/row to Us/VTs with updated approximation
     # Calculate J_i
     vT = rmatvec(Us, VTs, delta_x)
-    u = (delta_x - matvec(Us, VTs, delta_gx)) / _einsum('bij, bij -> b', vT, delta_gx)[:, None, None]
+    u = (delta_x - matvec(Us, VTs, delta_gx)) / \
+        _einsum('bij, bij -> b', vT, delta_gx)[:, None, None]
 
     vT = jnp.nan_to_num(vT)
     u = jnp.nan_to_num(u)
 
     # Store in UTs and VTs for calculating J
-    VTs = jax.ops.index_update(VTs, jax.ops.index[:, n_step - 1], vT)
-    Us = jax.ops.index_update(Us, jax.ops.index[:, :, :, n_step - 1], u)
+    # VTs = jax.ops.index_update(VTs, jax.ops.index[:, n_step - 1], vT)
+    # Us = jax.ops.index_update(Us, jax.ops.index[:, :, :, n_step - 1], u)
+    VTs = VTs.at[:, n_step - 1].set(vT)
+    Us = Us.at[:, :, :, n_step - 1].set(u)
 
     return Us, VTs
 
@@ -89,6 +96,7 @@ def line_search(g: Callable, direction: jnp.ndarray, x0: jnp.ndarray, g0: jnp.nd
     x_est = x0 + s * direction
     g0_new = g(x_est, *args)
     return x_est - x0, g0_new - g0
+
 
 def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> dict:
     """
@@ -107,12 +115,15 @@ def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> d
     # For fast calculation of inv_jacobian (approximately) we store as Us and VTs
 
     bsz, total_hsize, seq_len = x0.shape
-    gx = g(x0, *args)  # (bsz, 2d, L')
+    #print('BROYDEN_ARGS: {}'.format(*args))
+    input_mask = args[0]
+    gx = g(x0, input_mask)  # (bsz, 2d, L')
     init_objective = jnp.linalg.norm(gx)
 
     # To be used in protective breaks
     trace = jnp.zeros(max_iter)
-    trace = jax.ops.index_update(trace, jax.ops.index[0], init_objective)
+    #trace = jax.ops.index_update(trace, jax.ops.index[0], init_objective)
+    trace = trace.at[0].set(init_objective)
     protect_thres = 1e5 * seq_len
 
     state = _BroydenResults(
@@ -148,19 +159,23 @@ def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> d
         )
 
         new_objective = jnp.linalg.norm(state.gx)
-        trace = jax.ops.index_update(state.trace, jax.ops.index[state.n_step], new_objective)
+        # trace = jax.ops.index_update(
+        #     state.trace, jax.ops.index[state.n_step], new_objective)
+        trace = state.trace.at[state.n_step].set(new_objective)
 
         min_found = new_objective < state.min_objective
         state = state._replace(
             # if a new minimum is found
             min_x=jnp.where(min_found, state.x, state.min_x),
             min_gx=jnp.where(min_found, state.gx, state.min_gx),
-            min_objective=jnp.where(min_found, new_objective, state.min_objective),
+            min_objective=jnp.where(
+                min_found, new_objective, state.min_objective),
             trace=trace,
             # check convergence
             converged=(new_objective < eps),
             prot_break=(new_objective > init_objective * protect_thres),
-            prog_break=(new_objective < 3. * eps) & (state.n_step > 30) & (jnp.max(state.trace[-30:]) / jnp.min(state.trace[-30:]) < 1.3)
+            prog_break=(new_objective < 3. * eps) & (state.n_step >
+                                                     30) & (jnp.max(state.trace[-30:]) / jnp.min(state.trace[-30:]) < 1.3)
         )
 
         # update for next jacobian
@@ -168,7 +183,6 @@ def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> d
         state = state._replace(Us=Us, VTs=VTs)
 
         return state
-
 
     # state = body_fun(state)
     state = jax.lax.while_loop(cond_fun, body_fun, state)

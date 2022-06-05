@@ -3,7 +3,7 @@ from typing import Callable
 
 import jax.numpy as jnp
 import jax
-import broyden
+from broyden import broyden
 
 # A beautiful guide here for reference
 # https://jax.readthedocs.io/en/latest/notebooks/Custom_derivative_rules_for_Python_code.html#gradient-clipping
@@ -38,12 +38,11 @@ def rootfind_bwd(fun, max_iter, res, grad):
 
 
 @partial(jax.custom_vjp, nondiff_argnums=(0, 1))
-def rootfind(fun: Callable, max_iter: int, params: dict, rng: jnp.ndarray, x: jnp.ndarray, *args):
+def rootfind(g: Callable, max_iter: int, params: dict, rng: jnp.ndarray, x: jnp.ndarray, *args):
     eps = 1e-6 * jnp.sqrt(x.size)
-    fun = partial(fun, params, rng)
-
+    g = partial(g, params, rng)
     result_info = jax.lax.stop_gradient(
-        broyden(fun, x, max_iter, eps, *args)
+        broyden(g, x, max_iter, eps, *args)
     )
     return result_info['result']
 
@@ -61,12 +60,14 @@ def rootfind_grad(fun: Callable, max_iter: int, params: dict, rng, x: jnp.ndarra
 def dumb_fwd(fun: Callable, max_iter: int, params: dict, rng, x: jnp.ndarray, *args):
     return x, (params, rng, x, *args)
 
+
 def dumb_bwd(fun, max_iter, res, grad):
     (params, rng, z_star, *args) = res
     # passed back gradient via d/dx and return nothing to other params
     arg_grads = tuple([None for _ in args])
     return_tuple = (None, None, grad, *arg_grads)
     return return_tuple
+
 
 rootfind.defvjp(rootfind_fwd, dumb_bwd)
 rootfind_grad.defvjp(dumb_fwd, rootfind_bwd)
