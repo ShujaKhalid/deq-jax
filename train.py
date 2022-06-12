@@ -67,12 +67,11 @@ flags.DEFINE_string('checkpoint_dir', '/tmp/haiku-transformer',
 
 FLAGS = flags.FLAGS
 LOG_EVERY = 50
-MAX_STEPS = 10000  # 10**6
-DEQ_FLAG = False
+MAX_STEPS = 1000  # 10**6
+DEQ_FLAG = True
 LOG = False
 
 os.system("ls -lrt")
-
 
 def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                      num_layers: int, dropout_rate: float):

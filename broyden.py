@@ -115,9 +115,7 @@ def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> d
     # For fast calculation of inv_jacobian (approximately) we store as Us and VTs
 
     bsz, total_hsize, seq_len = x0.shape
-    #print('BROYDEN_ARGS: {}'.format(*args))
-    input_mask = args[0]
-    gx = g(x0, input_mask)  # (bsz, 2d, L')
+    gx = g(x0, *args)  # (bsz, 2d, L')
     init_objective = jnp.linalg.norm(gx)
 
     # To be used in protective breaks
