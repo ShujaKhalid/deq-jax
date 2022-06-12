@@ -120,6 +120,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
         if (DEQ_FLAG):
             from deq import deq
             max_iter = 10
+            solver = 1 # 0: Broyden ; 1: Anderson
 
             # Define a callable function for ease of access downstream
             def f(params, rng, x, input_mask):
@@ -131,7 +132,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 return transformer_pure.apply(params, rng, x, input_mask, is_training=is_training)
 
             z_star = output_embeddings = deq(
-                inner_params, hk.next_rng_key(), x, f, max_iter, input_mask)
+                inner_params, hk.next_rng_key(), x, f, max_iter, solver, input_mask)
         else:
             z_star = output_embeddings = transformer(
                 x, input_mask, is_training)

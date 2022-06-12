@@ -23,15 +23,15 @@ Here we define custom functions to calculate the gradient of the `rootfind` func
 
 # ===================================== rootfind ======================================================
 # Do a forward pass where  you actually find z_star
-def rootfind_fwd(fun: Callable, max_iter: int, params: dict, rng: jnp.ndarray, x: jnp.ndarray, *args):
-    z_star = rootfind(fun, max_iter, params, rng, x, *args)
+def rootfind_fwd(fun: Callable, max_iter: int, solver: int, params: dict, rng: jnp.ndarray, x: jnp.ndarray, *args):
+    z_star = rootfind(fun, max_iter, solver, params, rng, x, *args)
     # Returns primal output and residuals to be used in backward pass by f_bwd.
     # primal: z_star
     # residual: (params, rng, z_star, *args)
     return z_star, (params, rng, z_star, *args)
 
 # Just padd back the gradient and dont do anything special
-def dumb_bwd(fun, max_iter, res, grad):
+def dumb_bwd(fun, max_iter, solver, res, grad):
     (params, rng, z_star, *args) = res
     # passed back gradient via d/dx and return nothing to other params
     arg_grads = tuple([None for _ in args])
@@ -41,10 +41,10 @@ def dumb_bwd(fun, max_iter, res, grad):
 
 
 # ==================================== rootfind_grad ==================================================
-def dumb_fwd(fun: Callable, max_iter: int, params: dict, rng, x: jnp.ndarray, *args):
+def dumb_fwd(fun: Callable, max_iter: int, solver: int, params: dict, rng, x: jnp.ndarray, *args):
     return x, (params, rng, x, *args)
     
-def rootfind_bwd(fun, max_iter, res, grad):
+def rootfind_bwd(fun, max_iter, solver, res, grad):
     # returns dl/dz_star * J^(-1)_{g}
     (params, rng, z_star, *args) = res
     (_, vjp_fun) = jax.vjp(fun, params, rng, z_star, *args)
@@ -59,6 +59,7 @@ def rootfind_bwd(fun, max_iter, res, grad):
 
     # Iteratively calculate an estimate for this function instead of solving it analytically
     result_info = broyden(h_fun, dl_df_est, max_iter, eps)
+    # Your estimate of the gradient through the solver
     dl_df_est = result_info['result']
 
     # passed back gradient via d/dx and return nothing to other params
@@ -67,35 +68,42 @@ def rootfind_bwd(fun, max_iter, res, grad):
     return return_tuple
 # ====================================================================================================
 
-@partial(jax.custom_vjp, nondiff_argnums=(0, 1))
-def rootfind(g: Callable, max_iter: int, params: dict, rng: jnp.ndarray, x: jnp.ndarray, solver: str, *args):
+@partial(jax.custom_vjp, nondiff_argnums=(0, 1, 2))
+def rootfind(g: Callable, max_iter: int, solver: int, params: dict, rng: jnp.ndarray, x: jnp.ndarray, *args):
     eps = 1e-6 * jnp.sqrt(x.size)
-    g = partial(g, params, rng)
+    fun = partial(g, params, rng)
     # Dont include during gradient calculations
-    if (solver=='anderson'):
+    if (solver==0):
         result_info = jax.lax.stop_gradient(
             broyden(fun, x, max_iter, eps, *args)
-        ) 
-    elif (solver=='broyden'):
-        result_info = jax.lax.stop_gradient(
-            anderson(fun, history_size=5, maxiter=10*1000, ridge=1e-6, tol=tol).run(x)
+        )['result']
+        print(result_info)
+    elif (solver==1):
+        print(*args)
+        result_info, state = jax.lax.stop_gradient(
+            anderson(fun, history_size=5, maxiter=max_iter, ridge=1e-6, tol=eps).run(x, *args)
         )
-    return result_info['result']
+        print('results_info: {}'.format(result_info))
+    else:
+        print('SOLVER not provided (rootfind)...')        
+    return result_info
 
 
-@partial(jax.custom_vjp, nondiff_argnums=(0, 1))
-def rootfind_grad(fun: Callable, max_iter: int, params: dict, rng, x: jnp.ndarray, solver: str, *args):
+@partial(jax.custom_vjp, nondiff_argnums=(0, 1, 2))
+def rootfind_grad(g: Callable, max_iter: int, solver: int, params: dict, rng, x: jnp.ndarray, *args):
     eps = 1e-6 * jnp.sqrt(x.size)
-    fun = partial(fun, params, rng)
-    if (solver=='anderson'):
+    fun = partial(g, params, rng)
+    if (solver==0):
         result_info = jax.lax.stop_gradient(
             broyden(fun, x, max_iter, eps, *args)
-        ) 
-    elif (solver=='broyden'):
-        result_info = jax.lax.stop_gradient(
-            anderson(fun, history_size=5, maxiter=10*1000, ridge=1e-6, tol=tol).run(x)
+        )['result']
+    elif (solver==1):
+        result_info, state = jax.lax.stop_gradient(
+            anderson(fun, history_size=5, maxiter=max_iter, ridge=1e-6, tol=eps).run(x, *args)
         )
-    return result_info['result']
+    else:
+        print('SOLVER not provided (rootfind_grad)...')
+    return result_info
 
 
 rootfind.defvjp(rootfind_fwd, dumb_bwd)
