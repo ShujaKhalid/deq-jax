@@ -43,13 +43,14 @@ import haiku as hk
 # from examples.transformer import model
 import model
 import dataset
+import dataset_resnet
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
 
 flags.DEFINE_string('dataset_path', None,
-                    'Single-file ASCII dataset location.')
+                    'Single-file dataset location.')
 
 flags.DEFINE_integer('batch_size', 2, 'Train batch size per core')
 flags.DEFINE_integer('sequence_length', 64, 'Sequence length to learn on')
@@ -70,8 +71,7 @@ LOG_EVERY = 50
 MAX_STEPS = 1000  # 10**6
 DEQ_FLAG = True
 LOG = False
-
-os.system("ls -lrt")
+MODE = 'cls' # ['text', 'cls', 'seg']
 
 def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                      num_layers: int, dropout_rate: float):
@@ -105,22 +105,50 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             logging.info("input_embeddings.shape: {}".format(
                 input_embeddings.shape))
 
-        # Run the transformer over the inputs.
-        # Transform the transformer
-        transformer = model.Transformer(
-            num_heads=num_heads, num_layers=num_layers, dropout_rate=dropout_rate
-        )
-        transformer_pure = hk.transform(transformer)
+        if (MODE=='text'):
+            # Run the transformer over the inputs.
+            # Transform the transformer
+            transformer = model.Transformer(
+                num_heads=num_heads, num_layers=num_layers, dropout_rate=dropout_rate
+            )
+            transformer_pure = hk.transform(transformer)
 
-        # lift params
-        h = jnp.zeros_like(x)
-        inner_params = hk.experimental.lift(
-            transformer_pure.init)(hk.next_rng_key(), x, input_mask, is_training)
+            # lift params
+            h = jnp.zeros_like(x)
+            inner_params = hk.experimental.lift(
+                transformer_pure.init)(hk.next_rng_key(), x, input_mask, is_training)
+        elif (MODE=='cls'):
+            # TODO import resnet model here
+            # Use `single` and `multi-scale` approach here
+            from resnet50 import ResNet50
+            rng_key = random.PRNGKey(0)
+            batch_size = 8
+            num_classes = 10
+            input_shape = (224, 224, 3, batch_size)
+            step_size = 0.1
+            num_steps = 10
+            init_fun, predict_fun = ResNet50(num_classes)
+            _, init_params = init_fun(rng_key, input_shape)
+            pass
+        elif (MODE=='seg'):
+            # TODO import resnet model here
+            # Use `single` and `multi-scale` approach here
+            pass
+        # elif (MODE=='clsTrans'):
+        #     # TODO import resnet model here
+        #     # Use `single` and `multi-scale` approach here
+        #     continue
+        # elif (MODE=='segTrans'):
+        #     # TODO import resnet model here
+        #     # Use `single` and `multi-scale` approach here
+        #     continue
+
+
 
         if (DEQ_FLAG):
             from deq import deq
             max_iter = 10
-            solver = 1 # 0: Broyden ; 1: Anderson
+            solver = 1 # 0: Broyden ; 1: Anderson ; 2: secant
 
             # Define a callable function for ease of access downstream
             def f(params, rng, x, input_mask):
@@ -267,9 +295,14 @@ class CheckpointingUpdater:
 def main(_):
     FLAGS.alsologtostderr = True  # Always log visibly.
     # Create the dataset.
-    train_dataset = dataset.AsciiDataset(
-        FLAGS.dataset_path, FLAGS.batch_size, FLAGS.sequence_length)
-    vocab_size = train_dataset.vocab_size
+    if (MODE=='text'):
+        train_dataset = dataset.AsciiDataset(
+            FLAGS.dataset_path, FLAGS.batch_size, FLAGS.sequence_length)
+        vocab_size = train_dataset.vocab_size
+    elif (MODE=='cls'):
+        train_dataset = dataset_resnet.Cifar10Dataset(
+            FLAGS.dataset_path, FLAGS.batch_size)
+        vocab_size = train_dataset.vocab_size
 
     # Set up the model, loss, and updater.
     forward_fn = build_forward_fn(vocab_size, FLAGS.d_model, FLAGS.num_heads,

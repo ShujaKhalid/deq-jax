@@ -160,10 +160,6 @@ class AndersonAcceleration(base.IterativeSolver):
     Returns:
       state
     """
-    print('self: {}'.format(self))
-    print('init_params: {}'.format(init_params))
-    print('args: {}'.format(args))
-    print('kwargs: {}'.format(kwargs))
     m = self.history_size
     params_history = tree_map(lambda x: jnp.tile(x, [m]+[1]*x.ndim),
                               init_params)

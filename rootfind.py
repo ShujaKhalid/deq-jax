@@ -1,10 +1,16 @@
+# core
+import jax
+import jaxopt
+import jax.numpy as jnp
+import numpy as np
 from functools import partial
 from typing import Callable
 
-import jax.numpy as jnp
-import jax
+# solvers
 from broyden import broyden
 from anderson import AndersonAcceleration as anderson
+#from tensorflow_probability.substrates.jax.math import secant_root as secant
+from secant import find_root_secant as secant
 
 # A beautiful guide here for reference
 # https://jax.readthedocs.io/en/latest/notebooks/Custom_derivative_rules_for_Python_code.html#gradient-clipping
@@ -77,13 +83,21 @@ def rootfind(g: Callable, max_iter: int, solver: int, params: dict, rng: jnp.nda
         result_info = jax.lax.stop_gradient(
             broyden(fun, x, max_iter, eps, *args)
         )['result']
-        print(result_info)
     elif (solver==1):
-        print(*args)
         result_info, state = jax.lax.stop_gradient(
             anderson(fun, history_size=5, maxiter=max_iter, ridge=1e-6, tol=eps).run(x, *args)
         )
-        print('results_info: {}'.format(result_info))
+    elif (solver==2):
+        pytree_init = {'x1': np.zeros((2,64,128))}
+        pytree_init_args = {'b1': np.zeros((2,64))}
+        print(pytree_init)
+        print(pytree_init_args)
+        result_info = jax.lax.stop_gradient(
+            #secant(objective_fn=fun, initial_position=x)
+            # TODO look at the format of PyTrees
+            jaxopt.ScipyRootFinding(method='anderson', optimality_fun=fun, jit=False, tol=eps, has_aux=True).run(pytree_init, pytree_init_args)
+        )
+        print(result_info)
     else:
         print('SOLVER not provided (rootfind)...')        
     return result_info
@@ -99,8 +113,13 @@ def rootfind_grad(g: Callable, max_iter: int, solver: int, params: dict, rng, x:
         )['result']
     elif (solver==1):
         result_info, state = jax.lax.stop_gradient(
-            anderson(fun, history_size=5, maxiter=max_iter, ridge=1e-6, tol=eps).run(x, *args)
+            anderson(fun, history_size=5, maxiter=max_iter, ridge=1e-4, tol=eps).run(jnp.zeros(1), *args)
         )
+    elif (solver==2):
+        result_info = jax.lax.stop_gradient(
+            secant(objective_fn=fun, initial_position=x)
+        )
+        print(result_info)
     else:
         print('SOLVER not provided (rootfind_grad)...')
     return result_info
