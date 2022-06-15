@@ -17,45 +17,68 @@
 import glob
 import itertools
 import random
+import pickle
 import numpy as np
 
 
-def _infinite_shuffle(iterable, buffer_size):
-  """Infinitely repeat and shuffle data from iterable."""
-  ds = itertools.cycle(iterable)
-  buf = [next(ds) for _ in range(buffer_size)]
-  random.shuffle(buf)
-  while True:
-    item = next(ds)
-    idx = random.randint(0, buffer_size - 1)  # Inclusive.
-    result, buf[idx] = buf[idx], item
-    yield result
-
-
 class Cifar10Dataset:
-  def __init__(self, path: str, batch_size: int, sequence_length: int):
-    """Load a single-file ASCII dataset in memory."""
-    self.classes = 10
-    self._batch_size = batch_size
+    def __init__(self, path: str, batch_size: int):
+        """Load a single-file ASCII dataset in memory."""
+        self.batch = 0
+        self.classes = 10
+        self._batch_size = batch_size
+        self.data_train = {'x': [], 'y': []}
+        self.data_test = {'x': [], 'y': []}
 
-    data = {'x': [], 'y': []. 'yb': []}
-    for file in glob.glob(path+'/*data_batch*'): 
-        with open(file, 'r') as f:
-            batch = f.read()
-            for i in range(len(batch)):
-                r,g,b = np.array_split(dict[b'data'][i,:], 3)
-                data['x'].append(np.array([v.reshape(32,32) for v in [r,g,b]]))
-                data['y'].append(dict[b'labels'][i])
-                data['yb'].append(dict[b'batch_label'][i])
+        print('file: {}'.format(path+'/*data_batch*'))
+        for file in glob.glob(path+'/*data_batch*'):
+            with open(file, 'rb') as f:
+                batch = pickle.load(f, encoding='bytes')
+                for i in range(len(batch[b'data'])):
+                    r, g, b = np.array_split(batch[b'data'][i, :], 3)
+                    self.data_train['x'].append(np.array([v.reshape(32, 32)
+                                                          for v in [r, g, b]]))
+                    self.data_train['y'].append(batch[b'labels'][i])
 
-    self._ds = _infinite_shuffle(data, batch_size * 10)
+        for file in glob.glob(path+'/*test_batch*'):
+            with open(file, 'rb') as f:
+                batch = pickle.load(f, encoding='bytes')
+                for i in range(len(batch)):
+                    r, g, b = np.array_split(batch[b'data'][i, :], 3)
+                    self.data_test['x'].append(np.array([v.reshape(32, 32)
+                                                         for v in [r, g, b]]))
+                    self.data_test['y'].append(batch[b'labels'][i])
 
-  def __next__(self):
-    """Yield next mini-batch."""
-    batch = [next(self._ds) for _ in range(self._batch_size)]
-    batch = np.stack(batch)
-    # Create the language modeling observation/target pairs.
-    return dict(obs=batch['x'][:, :], target=batch['y'][:])
+        # shuffle
+        self.inds_train = [v for v in range(len(self.data_train['x']))]
+        np.random.shuffle(self.inds_train)
+        self.inds_test = [v for v in range(len(self.data_test['x']))]
+        np.random.shuffle(self.inds_test)
+        # print('self.inds_train: {}'.format(self.inds_train))
+        # print('self.inds_test: {}'.format(self.inds_test))
 
-  def __iter__(self):
-    return self
+        self._ds_train = {
+            'x': np.array(self.data_train['x'])[self.inds_train].transpose(2, 3, 1, 0),
+            'y': np.array(self.data_train['y'])[self.inds_train],
+        }
+        self._ds_test = {
+            'x': np.array(self.data_test['x'])[self.inds_test].transpose(2, 3, 1, 0),
+            'y': np.array(self.data_test['y'])[self.inds_test],
+        }
+
+    def __next__(self):
+        """Yield next mini-batch."""
+        print('self._ds_train[x]: {}'.format(self._ds_train['x'].shape))
+        print('self._ds_train[y]: {}'.format(self._ds_train['y'].shape))
+        obs = np.array(self._ds_train['x'][:, :, :, (self.batch*self._batch_size):(
+            (self.batch+1)*(self._batch_size))])
+        tgt = np.array(self._ds_train['y'][(self.batch*self._batch_size):(
+            (self.batch+1)*(self._batch_size))])
+        batch = dict(obs=obs, target=tgt)
+        print('batch_obs: {}'.format(batch['obs'].shape))
+        print('batch_tgt: {}'.format(batch['target'].shape))
+        self.batch += 1
+        return batch
+
+    def __iter__(self):
+        return self
