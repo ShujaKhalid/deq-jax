@@ -121,7 +121,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             # Use `single` and `multi-scale` approach here
             from resnet50 import ResNet50
             rng_key = random.PRNGKey(0)
-            batch_size = 8
+            batch_size = FLAGS.batch_size
             num_classes = 10
             input_shape = (32, 32, 3, batch_size)
             step_size = 0.1
