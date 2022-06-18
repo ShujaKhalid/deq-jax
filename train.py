@@ -35,6 +35,7 @@ import os
 import pickle
 import time
 from typing import Any, Mapping
+import cv2
 from tqdm import tqdm
 
 from absl import app
@@ -381,6 +382,15 @@ class CheckpointingUpdater:
 #     logits = jnp.dot(final_w, activations) + final_b
 #     return logits - logsumexp(logits)
 
+def preproc(x):
+    x = np.expand_dims(x, axis=3) if len(x.shape) == 3 else x
+    # TODO: fix
+    x = np.repeat(x, 3, axis=3) if x.shape[3] == 1 else x
+    x = np.array([cv2.resize(v, (32, 32))
+                  for v in x]) if x.shape[1] != 32 else x
+    x = np.transpose(x, (1, 2, 3, 0))
+    return x
+
 
 def main(_):
     FLAGS.alsologtostderr = True  # Always log visibly.
@@ -395,25 +405,6 @@ def main(_):
         forward_fn = hk.transform(forward_fn)
         loss_fn = functools.partial(lm_loss_fn, forward_fn.apply, vocab_size)
     elif (MODE == 'cls'):
-        # train_dataset = dataset_resnet.Cifar10Dataset(
-        #     FLAGS.dataset_path, FLAGS.batch_size)
-        # mnist_dataset = MNIST('/tmp/mnist/', download=True,
-        #                       transform=FlattenAndCast())
-        # training_generator = NumpyLoader(
-        #     mnist_dataset, batch_size=FLAGS.batch_size, num_workers=0)
-
-        # train_images = np.array(mnist_dataset.train_data).reshape(
-        #     len(mnist_dataset.train_data), -1)
-        # train_labels = one_hot(
-        #     np.array(mnist_dataset.train_labels), 10)
-
-        # Get full test dataset
-        # mnist_dataset_test = MNIST('/tmp/mnist/', download=True, train=False)
-        # test_images = jnp.array(mnist_dataset_test.test_data.numpy().reshape(
-        #     len(mnist_dataset_test.test_data), -1), dtype=jnp.float32)
-        # test_labels = one_hot(
-        #     np.array(mnist_dataset_test.test_labels), 10)
-        # Set up the model, loss, and updater.
         forward_fn = build_forward_fn(10, FLAGS.d_model, FLAGS.num_heads,
                                       FLAGS.num_layers, FLAGS.dropout_rate)
         forward_fn = hk.transform(forward_fn)
@@ -453,7 +444,7 @@ def main(_):
         # TODO add to config file
         config = {
             "path": "/home/skhalid/Documents/datalake/",
-            "dataset": "CIFAR10",
+            "dataset": "MNIST",  # []
             "batch_size": FLAGS.batch_size,
             "transform": None,
             "n_threads": 1,
@@ -469,8 +460,8 @@ def main(_):
         # Train the model
         for epoch in range(config["epochs"]):
             for step, (x, y) in enumerate(ds_dict['dl_trn']):
+                x = preproc(x)
                 #print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
-                x = np.transpose(x, (1, 2, 3, 0))
                 data = {'obs': x, 'target': y}
                 if (step < MAX_STEPS):
                     if (step == 0):
@@ -504,7 +495,7 @@ def main(_):
             #                          jax.nn.one_hot(y, config["classes"]))
             #     eval_trn.append(train_acc)
             for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
-                x = np.transpose(x, (1, 2, 3, 0))
+                x = preproc(x)
                 test_acc = accuracy(state['params'],
                                     rng,
                                     x,
