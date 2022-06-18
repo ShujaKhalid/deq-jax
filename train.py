@@ -35,6 +35,7 @@ import os
 import pickle
 import time
 from typing import Any, Mapping
+from tqdm import tqdm
 
 from absl import app
 from absl import flags
@@ -44,7 +45,7 @@ import haiku as hk
 # from examples.transformer import model
 import model
 import dataset
-import datasets
+from datasets import Datasets
 import dataset_resnet
 import jax
 import jax.numpy as jnp
@@ -74,7 +75,7 @@ flags.DEFINE_string('checkpoint_dir', '/tmp/haiku-transformer',
                     'Directory to store checkpoints.')
 
 FLAGS = flags.FLAGS
-LOG_EVERY = 50
+LOG_EVERY = 100
 MAX_STEPS = 1000  # 10**6
 DEQ_FLAG = False
 LOG = False
@@ -235,7 +236,7 @@ def lm_loss_fn(forward_fn,
                data: Mapping[str, jnp.ndarray],
                is_training: bool = True) -> jnp.ndarray:
     """Compute the loss on data wrt params."""
-    print('data.shape: {}'.format(data))
+    #print('data.shape: {}'.format(data))
     logits = forward_fn(params, rng, data, is_training)
     targets = jax.nn.one_hot(data['target'], vocab_size)
     assert logits.shape == targets.shape
@@ -348,48 +349,37 @@ class CheckpointingUpdater:
         state, out = self._inner.update(state, data)
         return state, out
 
-# def accuracy(forward_fn, state, data, classes):
-#     rng, _ = jax.random.split(state['rng'])
-#     params = state['params']
-#     logits = forward_fn(params, rng, data, is_training=False)
-#     targets = jax.nn.one_hot(data['target'], classes)
-#     target_class = jnp.argmax(targets, axis=1)
-#     predicted_class = jnp.argmax(logits, axis=1)
-#     print('target_class: {}'.format(target_class))
-#     print('predicted_class: {}'.format(predicted_class))
-#     return jnp.mean(predicted_class == target_class)
+
+# def one_hot(x, k, dtype=jnp.float32):
+#     """Create a one-hot encoding of x of size k."""
+#     return jnp.array(x[:, None] == jnp.arange(k), dtype)
 
 
-def one_hot(x, k, dtype=jnp.float32):
-    """Create a one-hot encoding of x of size k."""
-    return jnp.array(x[:, None] == jnp.arange(k), dtype)
+# def random_layer_params(m, n, key, scale=1e-2):
+#     w_key, b_key = random.split(key)
+#     return scale * random.normal(w_key, (n, m)), scale * random.normal(b_key, (n,))
 
 
-def random_layer_params(m, n, key, scale=1e-2):
-    w_key, b_key = random.split(key)
-    return scale * random.normal(w_key, (n, m)), scale * random.normal(b_key, (n,))
+# def init_network_params(key):
+#     layer_sizes = [784, 512, 512, 10]
+#     keys = random.split(key, len(layer_sizes))
+#     return [random_layer_params(m, n, k) for m, n, k in zip(layer_sizes[:-1], layer_sizes[1:], keys)]
 
 
-def init_network_params(key):
-    layer_sizes = [784, 512, 512, 10]
-    keys = random.split(key, len(layer_sizes))
-    return [random_layer_params(m, n, k) for m, n, k in zip(layer_sizes[:-1], layer_sizes[1:], keys)]
+# def relu(x):
+#     return jnp.maximum(0, x)
 
 
-def relu(x):
-    return jnp.maximum(0, x)
+# def predict(params, image):
+#     # per-example predictions
+#     activations = image
+#     for w, b in params[:-1]:
+#         outputs = jnp.dot(w, activations) + b
+#         activations = relu(outputs)
 
-
-def predict(params, image):
-    # per-example predictions
-    activations = image
-    for w, b in params[:-1]:
-        outputs = jnp.dot(w, activations) + b
-        activations = relu(outputs)
-
-    final_w, final_b = params[-1]
-    logits = jnp.dot(final_w, activations) + final_b
-    return logits - logsumexp(logits)
+#     final_w, final_b = params[-1]
+#     logits = jnp.dot(final_w, activations) + final_b
+#     return logits - logsumexp(logits)
 
 
 def main(_):
@@ -407,22 +397,22 @@ def main(_):
     elif (MODE == 'cls'):
         # train_dataset = dataset_resnet.Cifar10Dataset(
         #     FLAGS.dataset_path, FLAGS.batch_size)
-        mnist_dataset = MNIST('/tmp/mnist/', download=True,
-                              transform=FlattenAndCast())
-        training_generator = NumpyLoader(
-            mnist_dataset, batch_size=FLAGS.batch_size, num_workers=0)
+        # mnist_dataset = MNIST('/tmp/mnist/', download=True,
+        #                       transform=FlattenAndCast())
+        # training_generator = NumpyLoader(
+        #     mnist_dataset, batch_size=FLAGS.batch_size, num_workers=0)
 
-        train_images = np.array(mnist_dataset.train_data).reshape(
-            len(mnist_dataset.train_data), -1)
-        train_labels = one_hot(
-            np.array(mnist_dataset.train_labels), 10)
+        # train_images = np.array(mnist_dataset.train_data).reshape(
+        #     len(mnist_dataset.train_data), -1)
+        # train_labels = one_hot(
+        #     np.array(mnist_dataset.train_labels), 10)
 
         # Get full test dataset
-        mnist_dataset_test = MNIST('/tmp/mnist/', download=True, train=False)
-        test_images = jnp.array(mnist_dataset_test.test_data.numpy().reshape(
-            len(mnist_dataset_test.test_data), -1), dtype=jnp.float32)
-        test_labels = one_hot(
-            np.array(mnist_dataset_test.test_labels), 10)
+        # mnist_dataset_test = MNIST('/tmp/mnist/', download=True, train=False)
+        # test_images = jnp.array(mnist_dataset_test.test_data.numpy().reshape(
+        #     len(mnist_dataset_test.test_data), -1), dtype=jnp.float32)
+        # test_labels = one_hot(
+        #     np.array(mnist_dataset_test.test_labels), 10)
         # Set up the model, loss, and updater.
         forward_fn = build_forward_fn(10, FLAGS.d_model, FLAGS.num_heads,
                                       FLAGS.num_layers, FLAGS.dropout_rate)
@@ -459,47 +449,70 @@ def main(_):
                 logging.info({k: float(v) for k, v in metrics.items()})
 
     elif (MODE == 'cls'):
-        # step_size = 0.01
-        # batched_predict = vmap(predict, in_axes=(None, 0))
-        # params = init_network_params(random.PRNGKey(0))
 
+        # TODO add to config file
         config = {
             "path": "/home/skhalid/Documents/datalake/",
-            "dataset": "MNIST",
+            "dataset": "CIFAR10",
             "batch_size": FLAGS.batch_size,
-            "transform": None
+            "transform": None,
+            "n_threads": 1,
+            "epochs": 1,
+            "classes": 10
         }
 
-        d = datasets(config)
+        # Get the dataset in the required format
+        d = Datasets(config)
+        ds_dict = d.get_datasets()
+        print('\n\n\nds_dict: {}\n\n\n'.format(ds_dict))
 
-        print('\n\n\nd: {}\n\n\n'.format(d))
+        # Train the model
+        for epoch in range(config["epochs"]):
+            for step, (x, y) in enumerate(ds_dict['dl_trn']):
+                #print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
+                x = np.transpose(x, (1, 2, 3, 0))
+                data = {'obs': x, 'target': y}
+                if (step < MAX_STEPS):
+                    if (step == 0):
+                        # Initialize state
+                        state = updater.init(rng, data)
 
-        # def accuracy(params, images, targets):
-        #     target_class = jnp.argmax(targets, axis=1)
-        #     predicted_class = jnp.argmax(batched_predict(params, images), axis=1)
-        #     return jnp.mean(predicted_class == target_class)
+                    def accuracy(params, rng, x, y):
+                        target_class = jnp.argmax(y, axis=1)
+                        predicted_class = jnp.argmax(
+                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
+                        return jnp.mean(predicted_class == target_class)
 
-        # def loss(params, images, targets):
-        #     preds = batched_predict(params, images)
-        #     return -jnp.mean(preds * targets)
+                    state, metrics = updater.update(state, data)
 
-        # @jit
-        # def update(params, x, y):
-        #     grads = grad(loss)(params, x, y)
-        #     return [(w - step_size * dw, b - step_size * db)
-        #             for (w, b), (dw, db) in zip(params, grads)]
-        # # train_acc = accuracy(forward_fn.apply, state,
-        # #                      data, classes=10)
-        # # print('==> Training Accuracy: {}'.format(train_acc))
-        # for x, y in training_generator:
-        #     y = one_hot(y, 10)
-        #     params = update(params, x, y)
+                    # Training logs
+                    if step % LOG_EVERY == 0:
+                        steps_per_sec = LOG_EVERY / \
+                            (time.time() - prev_time)
+                        prev_time = time.time()
+                        metrics.update({'steps_per_sec': steps_per_sec})
+                        logging.info({k: float(v)
+                                      for k, v in metrics.items()})
 
-        # train_acc = accuracy(params, train_images, train_labels)
-        # test_acc = accuracy(params, test_images, test_labels)
-        # print("Training set accuracy {}".format(train_acc))
-        # print("Test set accuracy {}".format(test_acc))
-    # test_acc = accuracy(params, test_images, test_labels)
+            # ============================ Evaluation logs ===========================
+            eval_trn = []
+            eval_tst = []
+            # for i, (x, y) in enumerate(ds_dict['dl_trn']):
+            #     train_acc = accuracy(state['params'],
+            #                          rng,
+            #                          x,
+            #                          jax.nn.one_hot(y, config["classes"]))
+            #     eval_trn.append(train_acc)
+            for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
+                x = np.transpose(x, (1, 2, 3, 0))
+                test_acc = accuracy(state['params'],
+                                    rng,
+                                    x,
+                                    jax.nn.one_hot(y, config["classes"]))
+                eval_tst.append(test_acc)
+            print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
+                  np.mean(eval_trn), np.mean(eval_tst)))
+            # ============================ Evaluation logs ===========================
 
 
 if __name__ == '__main__':
