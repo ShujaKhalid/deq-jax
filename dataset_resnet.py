@@ -68,15 +68,15 @@ class Cifar10Dataset:
 
     def __next__(self):
         """Yield next mini-batch."""
-        print('self._ds_train[x]: {}'.format(self._ds_train['x'].shape))
-        print('self._ds_train[y]: {}'.format(self._ds_train['y'].shape))
+        # print('self._ds_train[x]: {}'.format(self._ds_train['x'].shape))
+        # print('self._ds_train[y]: {}'.format(self._ds_train['y'].shape))
         obs = np.array(self._ds_train['x'][:, :, :, (self.batch*self._batch_size):(
             (self.batch+1)*(self._batch_size))])
         tgt = np.array(self._ds_train['y'][(self.batch*self._batch_size):(
             (self.batch+1)*(self._batch_size))])
         batch = dict(obs=obs, target=tgt)
-        print('batch_obs: {}'.format(batch['obs'].shape))
-        print('batch_tgt: {}'.format(batch['target'].shape))
+        # print('batch_obs: {}'.format(batch['obs'].shape))
+        # print('batch_tgt: {}'.format(batch['target'].shape))
         self.batch += 1
         return batch
 

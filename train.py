@@ -52,7 +52,7 @@ import optax
 flags.DEFINE_string('dataset_path', None,
                     'Single-file dataset location.')
 
-flags.DEFINE_integer('batch_size', 3, 'Train batch size per core')
+flags.DEFINE_integer('batch_size', 16, 'Train batch size per core')
 flags.DEFINE_integer('sequence_length', 64, 'Sequence length to learn on')
 
 flags.DEFINE_integer('d_model', 128, 'model width')
@@ -69,7 +69,7 @@ flags.DEFINE_string('checkpoint_dir', '/tmp/haiku-transformer',
 FLAGS = flags.FLAGS
 LOG_EVERY = 50
 MAX_STEPS = 1000  # 10**6
-DEQ_FLAG = True
+DEQ_FLAG = False
 LOG = False
 MODE = 'cls'  # ['text', 'cls', 'seg']
 
@@ -81,30 +81,20 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
     def forward_fn(data: Mapping[str, jnp.ndarray],
                    is_training: bool = True) -> jnp.ndarray:
         """Forward pass."""
-        tokens = data['obs']
-        input_mask = jnp.greater(tokens, 0)
-        seq_length = tokens.shape[1]
-
-        # Embed the input tokens and positions.
-        embed_init = hk.initializers.TruncatedNormal(stddev=0.02)
-        token_embedding_map = hk.Embed(vocab_size, d_model, w_init=embed_init)
-        token_embs = token_embedding_map(tokens)
-        positional_embeddings = hk.get_parameter(
-            'pos_embs', [seq_length, d_model], init=embed_init)
-        input_embeddings = x = token_embs + positional_embeddings
-
-        if (LOG):
-            logging.info("==> forward_fn <==")
-            logging.info("tokens.shape: {}".format(tokens.shape))
-            logging.info("vocab_size: {}".format(vocab_size))
-            logging.info("d_model: {}".format(d_model))
-            logging.info("seq_length: {}".format(seq_length))
-            logging.info("positional_embeddings.shape: {}".format(
-                positional_embeddings.shape))
-            logging.info("input_embeddings.shape: {}".format(
-                input_embeddings.shape))
 
         if (MODE == 'text'):
+            tokens = data['obs']
+            input_mask = jnp.greater(tokens, 0)
+            seq_length = tokens.shape[1]
+
+            # Embed the input tokens and positions.
+            embed_init = hk.initializers.TruncatedNormal(stddev=0.02)
+            token_embedding_map = hk.Embed(
+                vocab_size, d_model, w_init=embed_init)
+            token_embs = token_embedding_map(tokens)
+            positional_embeddings = hk.get_parameter(
+                'pos_embs', [seq_length, d_model], init=embed_init)
+            input_embeddings = x = token_embs + positional_embeddings
             # Run the transformer over the inputs.
             # Transform the transformer
             transformer = model.Transformer(
@@ -116,19 +106,68 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             h = jnp.zeros_like(x)
             inner_params = hk.experimental.lift(
                 transformer_pure.init)(hk.next_rng_key(), x, input_mask, is_training)
+
+            if (DEQ_FLAG):
+                from deq import deq
+                max_iter = 10
+                solver = 1  # 0: Broyden ; 1: Anderson ; 2: secant
+
+                # Define a callable function for ease of access downstream
+                def f(params, rng, x, input_mask):
+                    # print('params: {}'.format(params))
+                    # print('rng: {}'.format(rng))
+                    # print('x: {}'.format(x))
+                    # print('input_mask: {}'.format(input_mask))
+                    # print('is_training: {}'.format(is_training))
+                    return transformer_pure.apply(params, rng, x, input_mask, is_training=is_training)
+
+                z_star = deq(
+                    inner_params, hk.next_rng_key(), x, f, max_iter, solver, input_mask)
+            else:
+                z_star = transformer(
+                    x, input_mask, is_training)
+
         elif (MODE == 'cls'):
             # TODO import resnet model here
             # Use `single` and `multi-scale` approach here
             from resnet50 import ResNet50
-            rng_key = random.PRNGKey(0)
+            x = data['obs'].astype('float32')
+            rng_key = jax.random.PRNGKey(0)
             batch_size = FLAGS.batch_size
             num_classes = 10
+            # TODO: resize original imgs from 32 -> 224
             input_shape = (32, 32, 3, batch_size)
             step_size = 0.1
             num_steps = 10
             init_fun, predict_fun = ResNet50(num_classes)
             _, init_params = init_fun(rng_key, input_shape)
-            pass
+            resnet_pure = hk.transform(predict_fun)
+            # inner_params = hk.experimental.lift(
+            #     resnet_pure.init)(hk.next_rng_key(), x, is_training)
+            vocab_size = num_classes
+
+            if (DEQ_FLAG):
+                from deq import deq
+                max_iter = 10
+                solver = 1  # 0: Broyden ; 1: Anderson ; 2: secant
+
+                # Define a callable function for ease of access downstream
+                def f(params, rng, x):
+                    # print('params: {}'.format(params))
+                    # print('rng: {}'.format(rng))
+                    # print('x: {}'.format(x))
+                    # print('input_mask: {}'.format(input_mask))
+                    # print('is_training: {}'.format(is_training))
+                    return resnet_pure.apply(params, rng, x)
+
+                z_star = deq(
+                    inner_params, hk.next_rng_key(), x, f, max_iter, solver
+                )
+            else:
+                # print('x: {}'.format(x.shape))
+                # print('init_params: {}'.format(init_params.shape))
+                z_star = predict_fun(init_params, inputs=x, rng=rng_key)
+
         elif (MODE == 'seg'):
             # TODO import resnet model here
             # Use `single` and `multi-scale` approach here
@@ -141,28 +180,6 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
         #     # TODO import resnet model here
         #     # Use `single` and `multi-scale` approach here
         #     continue
-
-        if (DEQ_FLAG):
-            from deq import deq
-            max_iter = 10
-            solver = 1  # 0: Broyden ; 1: Anderson ; 2: secant
-
-            # Define a callable function for ease of access downstream
-            def f(params, rng, x, input_mask):
-                # print('params: {}'.format(params))
-                # print('rng: {}'.format(rng))
-                # print('x: {}'.format(x))
-                # print('input_mask: {}'.format(input_mask))
-                # print('is_training: {}'.format(is_training))
-                return transformer_pure.apply(params, rng, x, input_mask, is_training=is_training)
-
-            z_star = output_embeddings = deq(
-                inner_params, hk.next_rng_key(), x, f, max_iter, solver, input_mask)
-        else:
-            z_star = output_embeddings = transformer(
-                x, input_mask, is_training)
-
-        print("output_embeddings.shape: {}".format(output_embeddings.shape))
 
         # Reverse the embeddings (untied).
         return hk.Linear(vocab_size)(z_star)
@@ -177,6 +194,7 @@ def lm_loss_fn(forward_fn,
                data: Mapping[str, jnp.ndarray],
                is_training: bool = True) -> jnp.ndarray:
     """Compute the loss on data wrt params."""
+    print('data.shape: {}'.format(data))
     logits = forward_fn(params, rng, data, is_training)
     targets = jax.nn.one_hot(data['target'], vocab_size)
     assert logits.shape == targets.shape
@@ -184,7 +202,6 @@ def lm_loss_fn(forward_fn,
     mask = jnp.greater(data['obs'], 0)
     loss = -jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1)
     loss = jnp.sum(loss * mask) / jnp.sum(mask)
-
     return loss
 
 
@@ -262,6 +279,8 @@ class CheckpointingUpdater:
         """Initialize experiment state."""
         if not os.path.exists(self._checkpoint_dir) or not self._checkpoint_paths():
             os.makedirs(self._checkpoint_dir, exist_ok=True)
+            print('self._checkpoint_dir: {}'.format(self._checkpoint_dir))
+            # print('self.data: {}'.format(data))
             return self._inner.init(rng, data)
         else:
             checkpoint = os.path.join(self._checkpoint_dir,
@@ -287,6 +306,18 @@ class CheckpointingUpdater:
 
         state, out = self._inner.update(state, data)
         return state, out
+
+
+def accuracy(forward_fn, state, data, classes):
+    rng, _ = jax.random.split(state['rng'])
+    params = state['params']
+    logits = forward_fn(params, rng, data, is_training=False)
+    targets = jax.nn.one_hot(data['target'], classes)
+    target_class = jnp.argmax(targets, axis=1)
+    predicted_class = jnp.argmax(logits, axis=1)
+    print('target_class: {}'.format(target_class))
+    print('predicted_class: {}'.format(predicted_class))
+    return jnp.mean(predicted_class == target_class)
 
 
 def main(_):
@@ -336,6 +367,12 @@ def main(_):
             prev_time = time.time()
             metrics.update({'steps_per_sec': steps_per_sec})
             logging.info({k: float(v) for k, v in metrics.items()})
+
+    if (MODE == 'cls'):
+        train_acc = accuracy(forward_fn.apply, state,
+                             data, classes=10)
+        print('==> Training Accuracy: {}'.format(train_acc))
+    #test_acc = accuracy(params, test_images, test_labels)
 
 
 if __name__ == '__main__':
