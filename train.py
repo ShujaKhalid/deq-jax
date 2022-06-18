@@ -29,6 +29,7 @@ $ python3 examples/transformer/train.py --dataset_path=/tmp/shakespeare.txt
 Note: Run with --alsologtostderr to see outputs.
 """
 
+from jax.scipy.special import logsumexp
 import functools
 import os
 import pickle
@@ -48,6 +49,11 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+from jax import grad, jit, vmap, random
+
+import numpy as np
+from torch.utils import data
+from torchvision.datasets import MNIST
 
 flags.DEFINE_string('dataset_path', None,
                     'Single-file dataset location.')
@@ -72,6 +78,40 @@ MAX_STEPS = 1000  # 10**6
 DEQ_FLAG = False
 LOG = False
 MODE = 'cls'  # ['text', 'cls', 'seg']
+
+
+def numpy_collate(batch):
+    if isinstance(batch[0], np.ndarray):
+        return np.stack(batch)
+    elif isinstance(batch[0], (tuple, list)):
+        transposed = zip(*batch)
+        return [numpy_collate(samples) for samples in transposed]
+    else:
+        return np.array(batch)
+
+
+class NumpyLoader(data.DataLoader):
+    def __init__(self, dataset, batch_size=1,
+                 shuffle=False, sampler=None,
+                 batch_sampler=None, num_workers=0,
+                 pin_memory=False, drop_last=False,
+                 timeout=0, worker_init_fn=None):
+        super(self.__class__, self).__init__(dataset,
+                                             batch_size=batch_size,
+                                             shuffle=shuffle,
+                                             sampler=sampler,
+                                             batch_sampler=batch_sampler,
+                                             num_workers=num_workers,
+                                             collate_fn=numpy_collate,
+                                             pin_memory=pin_memory,
+                                             drop_last=drop_last,
+                                             timeout=timeout,
+                                             worker_init_fn=worker_init_fn)
+
+
+class FlattenAndCast(object):
+    def __call__(self, pic):
+        return np.ravel(np.array(pic, dtype=jnp.float32))
 
 
 def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
@@ -307,17 +347,48 @@ class CheckpointingUpdater:
         state, out = self._inner.update(state, data)
         return state, out
 
+# def accuracy(forward_fn, state, data, classes):
+#     rng, _ = jax.random.split(state['rng'])
+#     params = state['params']
+#     logits = forward_fn(params, rng, data, is_training=False)
+#     targets = jax.nn.one_hot(data['target'], classes)
+#     target_class = jnp.argmax(targets, axis=1)
+#     predicted_class = jnp.argmax(logits, axis=1)
+#     print('target_class: {}'.format(target_class))
+#     print('predicted_class: {}'.format(predicted_class))
+#     return jnp.mean(predicted_class == target_class)
 
-def accuracy(forward_fn, state, data, classes):
-    rng, _ = jax.random.split(state['rng'])
-    params = state['params']
-    logits = forward_fn(params, rng, data, is_training=False)
-    targets = jax.nn.one_hot(data['target'], classes)
-    target_class = jnp.argmax(targets, axis=1)
-    predicted_class = jnp.argmax(logits, axis=1)
-    print('target_class: {}'.format(target_class))
-    print('predicted_class: {}'.format(predicted_class))
-    return jnp.mean(predicted_class == target_class)
+
+def one_hot(x, k, dtype=jnp.float32):
+    """Create a one-hot encoding of x of size k."""
+    return jnp.array(x[:, None] == jnp.arange(k), dtype)
+
+
+def random_layer_params(m, n, key, scale=1e-2):
+    w_key, b_key = random.split(key)
+    return scale * random.normal(w_key, (n, m)), scale * random.normal(b_key, (n,))
+
+
+def init_network_params(key):
+    layer_sizes = [784, 512, 512, 10]
+    keys = random.split(key, len(layer_sizes))
+    return [random_layer_params(m, n, k) for m, n, k in zip(layer_sizes[:-1], layer_sizes[1:], keys)]
+
+
+def relu(x):
+    return jnp.maximum(0, x)
+
+
+def predict(params, image):
+    # per-example predictions
+    activations = image
+    for w, b in params[:-1]:
+        outputs = jnp.dot(w, activations) + b
+        activations = relu(outputs)
+
+    final_w, final_b = params[-1]
+    logits = jnp.dot(final_w, activations) + final_b
+    return logits - logsumexp(logits)
 
 
 def main(_):
@@ -333,8 +404,24 @@ def main(_):
         forward_fn = hk.transform(forward_fn)
         loss_fn = functools.partial(lm_loss_fn, forward_fn.apply, vocab_size)
     elif (MODE == 'cls'):
-        train_dataset = dataset_resnet.Cifar10Dataset(
-            FLAGS.dataset_path, FLAGS.batch_size)
+        # train_dataset = dataset_resnet.Cifar10Dataset(
+        #     FLAGS.dataset_path, FLAGS.batch_size)
+        mnist_dataset = MNIST('/tmp/mnist/', download=True,
+                              transform=FlattenAndCast())
+        training_generator = NumpyLoader(
+            mnist_dataset, batch_size=FLAGS.batch_size, num_workers=0)
+
+        train_images = np.array(mnist_dataset.train_data).reshape(
+            len(mnist_dataset.train_data), -1)
+        train_labels = one_hot(
+            np.array(mnist_dataset.train_labels), 10)
+
+        # Get full test dataset
+        mnist_dataset_test = MNIST('/tmp/mnist/', download=True, train=False)
+        test_images = jnp.array(mnist_dataset_test.test_data.numpy().reshape(
+            len(mnist_dataset_test.test_data), -1), dtype=jnp.float32)
+        test_labels = one_hot(
+            np.array(mnist_dataset_test.test_labels), 10)
         # Set up the model, loss, and updater.
         forward_fn = build_forward_fn(10, FLAGS.d_model, FLAGS.num_heads,
                                       FLAGS.num_layers, FLAGS.dropout_rate)
@@ -351,28 +438,56 @@ def main(_):
     # Initialize parameters.
     logging.info('Initializing parameters...')
     rng = jax.random.PRNGKey(428)
-    data = next(train_dataset, mode='train')
-    state = updater.init(rng, data)
 
     logging.info('Starting train loop...')
     prev_time = time.time()
-    for step in range(MAX_STEPS):
-        data = next(train_dataset, mode='test')
-        state, metrics = updater.update(state, data)
-        # We use JAX runahead to mask data preprocessing and JAX dispatch overheads.
-        # Using values from state/metrics too often will block the runahead and can
-        # cause these overheads to become more prominent.
-        if step % LOG_EVERY == 0:
-            steps_per_sec = LOG_EVERY / (time.time() - prev_time)
-            prev_time = time.time()
-            metrics.update({'steps_per_sec': steps_per_sec})
-            logging.info({k: float(v) for k, v in metrics.items()})
 
-    if (MODE == 'cls'):
-        train_acc = accuracy(forward_fn.apply, state,
-                             data, classes=10)
-        print('==> Training Accuracy: {}'.format(train_acc))
-    #test_acc = accuracy(params, test_images, test_labels)
+    if (MODE == 'text'):
+        data = next(train_dataset, mode='train')
+        state = updater.init(rng, data)
+        for step in range(MAX_STEPS):
+            data = next(train_dataset, mode='test')
+            state, metrics = updater.update(state, data)
+            # We use JAX runahead to mask data preprocessing and JAX dispatch overheads.
+            # Using values from state/metrics too often will block the runahead and can
+            # cause these overheads to become more prominent.
+            if step % LOG_EVERY == 0:
+                steps_per_sec = LOG_EVERY / (time.time() - prev_time)
+                prev_time = time.time()
+                metrics.update({'steps_per_sec': steps_per_sec})
+                logging.info({k: float(v) for k, v in metrics.items()})
+
+    elif (MODE == 'cls'):
+        step_size = 0.01
+        batched_predict = vmap(predict, in_axes=(None, 0))
+        params = init_network_params(random.PRNGKey(0))
+
+        def accuracy(params, images, targets):
+            target_class = jnp.argmax(targets, axis=1)
+            predicted_class = jnp.argmax(batched_predict(params, images), axis=1)
+            return jnp.mean(predicted_class == target_class)
+
+        def loss(params, images, targets):
+            preds = batched_predict(params, images)
+            return -jnp.mean(preds * targets)
+
+        @jit
+        def update(params, x, y):
+            grads = grad(loss)(params, x, y)
+            return [(w - step_size * dw, b - step_size * db)
+                    for (w, b), (dw, db) in zip(params, grads)]
+        # train_acc = accuracy(forward_fn.apply, state,
+        #                      data, classes=10)
+        # print('==> Training Accuracy: {}'.format(train_acc))
+        for x, y in training_generator:
+            y = one_hot(y, 10)
+            params = update(params, x, y)
+
+        train_acc = accuracy(params, train_images, train_labels)
+        test_acc = accuracy(params, test_images, test_labels)
+        print("Training set accuracy {}".format(train_acc))
+        print("Test set accuracy {}".format(test_acc))
+    # test_acc = accuracy(params, test_images, test_labels)
 
 
 if __name__ == '__main__':
