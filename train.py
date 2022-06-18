@@ -44,6 +44,7 @@ import haiku as hk
 # from examples.transformer import model
 import model
 import dataset
+import datasets
 import dataset_resnet
 import jax
 import jax.numpy as jnp
@@ -458,35 +459,46 @@ def main(_):
                 logging.info({k: float(v) for k, v in metrics.items()})
 
     elif (MODE == 'cls'):
-        step_size = 0.01
-        batched_predict = vmap(predict, in_axes=(None, 0))
-        params = init_network_params(random.PRNGKey(0))
+        # step_size = 0.01
+        # batched_predict = vmap(predict, in_axes=(None, 0))
+        # params = init_network_params(random.PRNGKey(0))
 
-        def accuracy(params, images, targets):
-            target_class = jnp.argmax(targets, axis=1)
-            predicted_class = jnp.argmax(batched_predict(params, images), axis=1)
-            return jnp.mean(predicted_class == target_class)
+        config = {
+            "path": "/home/skhalid/Documents/datalake/",
+            "dataset": "MNIST",
+            "batch_size": FLAGS.batch_size,
+            "transform": None
+        }
 
-        def loss(params, images, targets):
-            preds = batched_predict(params, images)
-            return -jnp.mean(preds * targets)
+        d = datasets(config)
 
-        @jit
-        def update(params, x, y):
-            grads = grad(loss)(params, x, y)
-            return [(w - step_size * dw, b - step_size * db)
-                    for (w, b), (dw, db) in zip(params, grads)]
-        # train_acc = accuracy(forward_fn.apply, state,
-        #                      data, classes=10)
-        # print('==> Training Accuracy: {}'.format(train_acc))
-        for x, y in training_generator:
-            y = one_hot(y, 10)
-            params = update(params, x, y)
+        print('\n\n\nd: {}\n\n\n'.format(d))
 
-        train_acc = accuracy(params, train_images, train_labels)
-        test_acc = accuracy(params, test_images, test_labels)
-        print("Training set accuracy {}".format(train_acc))
-        print("Test set accuracy {}".format(test_acc))
+        # def accuracy(params, images, targets):
+        #     target_class = jnp.argmax(targets, axis=1)
+        #     predicted_class = jnp.argmax(batched_predict(params, images), axis=1)
+        #     return jnp.mean(predicted_class == target_class)
+
+        # def loss(params, images, targets):
+        #     preds = batched_predict(params, images)
+        #     return -jnp.mean(preds * targets)
+
+        # @jit
+        # def update(params, x, y):
+        #     grads = grad(loss)(params, x, y)
+        #     return [(w - step_size * dw, b - step_size * db)
+        #             for (w, b), (dw, db) in zip(params, grads)]
+        # # train_acc = accuracy(forward_fn.apply, state,
+        # #                      data, classes=10)
+        # # print('==> Training Accuracy: {}'.format(train_acc))
+        # for x, y in training_generator:
+        #     y = one_hot(y, 10)
+        #     params = update(params, x, y)
+
+        # train_acc = accuracy(params, train_images, train_labels)
+        # test_acc = accuracy(params, test_images, test_labels)
+        # print("Training set accuracy {}".format(train_acc))
+        # print("Test set accuracy {}".format(test_acc))
     # test_acc = accuracy(params, test_images, test_labels)
 
 
