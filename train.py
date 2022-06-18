@@ -61,7 +61,7 @@ from torchvision.datasets import MNIST
 flags.DEFINE_string('dataset_path', None,
                     'Single-file dataset location.')
 
-flags.DEFINE_integer('batch_size', 16, 'Train batch size per core')
+flags.DEFINE_integer('batch_size', 32, 'Train batch size per core')
 flags.DEFINE_integer('sequence_length', 64, 'Sequence length to learn on')
 
 flags.DEFINE_integer('d_model', 128, 'model width')
@@ -76,8 +76,8 @@ flags.DEFINE_string('checkpoint_dir', '/tmp/haiku-transformer',
                     'Directory to store checkpoints.')
 
 FLAGS = flags.FLAGS
-LOG_EVERY = 100
-MAX_STEPS = 1000  # 10**6
+LOG_EVERY = 1000
+MAX_STEPS = 10000  # 10**6
 DEQ_FLAG = False
 LOG = False
 MODE = 'cls'  # ['text', 'cls', 'seg']
@@ -444,11 +444,11 @@ def main(_):
         # TODO add to config file
         config = {
             "path": "/home/skhalid/Documents/datalake/",
-            "dataset": "MNIST",  # []
+            "dataset": "ImageNet",  # ["ImageNet", "CIFAR10", "MNIST"]
             "batch_size": FLAGS.batch_size,
             "transform": None,
             "n_threads": 1,
-            "epochs": 1,
+            "epochs": 3,
             "classes": 10
         }
 
@@ -464,7 +464,7 @@ def main(_):
                 #print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
                 data = {'obs': x, 'target': y}
                 if (step < MAX_STEPS):
-                    if (step == 0):
+                    if (epoch == 0 and step == 0):
                         # Initialize state
                         state = updater.init(rng, data)
 
