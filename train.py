@@ -351,13 +351,13 @@ def main(_):
     # Initialize parameters.
     logging.info('Initializing parameters...')
     rng = jax.random.PRNGKey(428)
-    data = next(train_dataset)
+    data = next(train_dataset, mode='train')
     state = updater.init(rng, data)
 
     logging.info('Starting train loop...')
     prev_time = time.time()
     for step in range(MAX_STEPS):
-        data = next(train_dataset)
+        data = next(train_dataset, mode='test')
         state, metrics = updater.update(state, data)
         # We use JAX runahead to mask data preprocessing and JAX dispatch overheads.
         # Using values from state/metrics too often will block the runahead and can

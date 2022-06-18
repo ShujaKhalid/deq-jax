@@ -24,7 +24,8 @@ import numpy as np
 class Cifar10Dataset:
     def __init__(self, path: str, batch_size: int):
         """Load a single-file ASCII dataset in memory."""
-        self.batch = 0
+        self.batch_train = 0
+        self.batch_test = 0
         self.classes = 10
         self._batch_size = batch_size
         self.data_train = {'x': [], 'y': []}
@@ -66,18 +67,24 @@ class Cifar10Dataset:
             'y': np.array(self.data_test['y'])[self.inds_test],
         }
 
-    def __next__(self):
+    def __next__(self, mode):
         """Yield next mini-batch."""
-        # print('self._ds_train[x]: {}'.format(self._ds_train['x'].shape))
-        # print('self._ds_train[y]: {}'.format(self._ds_train['y'].shape))
-        obs = np.array(self._ds_train['x'][:, :, :, (self.batch*self._batch_size):(
-            (self.batch+1)*(self._batch_size))])
-        tgt = np.array(self._ds_train['y'][(self.batch*self._batch_size):(
-            (self.batch+1)*(self._batch_size))])
-        batch = dict(obs=obs, target=tgt)
-        # print('batch_obs: {}'.format(batch['obs'].shape))
-        # print('batch_tgt: {}'.format(batch['target'].shape))
-        self.batch += 1
+
+        if (mode == 'train'):
+            obs = np.array(self._ds_train['x'][:, :, :, (self.batch*self._batch_size):(
+                (self.batch+1)*(self._batch_size))])
+            tgt = np.array(self._ds_train['y'][(self.batch*self._batch_size):(
+                (self.batch+1)*(self._batch_size))])
+            batch = dict(obs=obs, target=tgt)
+            self.batch_train += 1
+        elif (mode == 'test'):
+            obs = np.array(self._ds_test['x'][:, :, :, (self.batch*self._batch_size):(
+                (self.batch+1)*(self._batch_size))])
+            tgt = np.array(self._ds_test['y'][(self.batch*self._batch_size):(
+                (self.batch+1)*(self._batch_size))])
+            batch = dict(obs=obs, target=tgt)
+            self.batch_test += 1
+
         return batch
 
     def __iter__(self):
