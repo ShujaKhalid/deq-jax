@@ -78,7 +78,7 @@ flags.DEFINE_string('checkpoint_dir', '/tmp/haiku-transformer',
 FLAGS = flags.FLAGS
 LOG_EVERY = 100
 MAX_STEPS = 1000  # 10**6
-DEQ_FLAG = False
+DEQ_FLAG = True
 LOG = False
 MODE = 'text'  # ['text', 'cls', 'seg']
 
