@@ -58,11 +58,18 @@ class Datasets():
 
         if not self.dataset_name:
             raise Exception("No dataset has been set!?!")
-        return getattr(torchvision.datasets, self.dataset_name)(
-            root=self.dataset_path,
-            train=train,
-            transform=make_jax_friendly,
-            download=True)
+
+        if (self.dataset_name == "ImageNet"):
+            return getattr(torchvision.datasets, self.dataset_name)(
+                root=self.dataset_path,
+                split="train" if train else "val",
+                transform=make_jax_friendly)
+        else:
+            return getattr(torchvision.datasets, self.dataset_name)(
+                root=self.dataset_path,
+                train=train,
+                transform=make_jax_friendly,
+                download=True)
 
     def get_datasets(self):
         # Add new datasets to the schematic below.

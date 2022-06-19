@@ -29,6 +29,7 @@ $ python3 examples/transformer/train.py --dataset_path=/tmp/shakespeare.txt
 Note: Run with --alsologtostderr to see outputs.
 """
 
+from tkinter import X
 from jax.scipy.special import logsumexp
 import functools
 import os
@@ -112,11 +113,6 @@ class NumpyLoader(data.DataLoader):
                                              worker_init_fn=worker_init_fn)
 
 
-class FlattenAndCast(object):
-    def __call__(self, pic):
-        return np.ravel(np.array(pic, dtype=jnp.float32))
-
-
 def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                      num_layers: int, dropout_rate: float):
     """Create the model's forward pass."""
@@ -173,20 +169,23 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
         elif (MODE == 'cls'):
             # TODO import resnet model here
             # Use `single` and `multi-scale` approach here
-            from resnet50 import ResNet50
+            import resnet
             x = data['obs'].astype('float32')
             rng_key = jax.random.PRNGKey(0)
             batch_size = FLAGS.batch_size
             num_classes = 10
             # TODO: resize original imgs from 32 -> 224
-            input_shape = (32, 32, 3, batch_size)
-            step_size = 0.1
-            num_steps = 10
-            init_fun, predict_fun = ResNet50(num_classes)
-            _, init_params = init_fun(rng_key, input_shape)
-            resnet_pure = hk.transform(predict_fun)
-            # inner_params = hk.experimental.lift(
-            #     resnet_pure.init)(hk.next_rng_key(), x, is_training)
+            # input_shape = (32, 32, 3, batch_size)
+            # step_size = 0.1
+            # num_steps = 10
+
+            def resnet_fn(x, is_training):
+                model = resnet.ResNet18(
+                    num_classes=num_classes, resnet_v2=True)
+                return model(x, is_training=is_training)
+
+            model = hk.transform_with_state(resnet_fn)
+            params, state = model.init(hk.next_rng_key(), x, is_training=True)
             vocab_size = num_classes
 
             if (DEQ_FLAG):
@@ -195,21 +194,22 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 solver = 1  # 0: Broyden ; 1: Anderson ; 2: secant
 
                 # Define a callable function for ease of access downstream
-                def f(params, rng, x):
+                def f(params, state, rng, x):
                     # print('params: {}'.format(params))
                     # print('rng: {}'.format(rng))
                     # print('x: {}'.format(x))
                     # print('input_mask: {}'.format(input_mask))
                     # print('is_training: {}'.format(is_training))
-                    return resnet_pure.apply(params, rng, x)
+                    return model.apply(params, state, rng, x)
 
                 z_star = deq(
-                    inner_params, hk.next_rng_key(), x, f, max_iter, solver
+                    params, hk.next_rng_key(), x, f, max_iter, solver
                 )
             else:
                 # print('x: {}'.format(x.shape))
                 # print('init_params: {}'.format(init_params.shape))
-                z_star = predict_fun(init_params, inputs=x, rng=rng_key)
+                z_star, state = model.apply(params, state, None,
+                                            x, is_training=True)
 
         elif (MODE == 'seg'):
             # TODO import resnet model here
@@ -225,7 +225,10 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
         #     continue
 
         # Reverse the embeddings (untied).
-        return hk.Linear(vocab_size)(z_star)
+        print("z_star: {}".format(z_star.shape))
+
+        return z_star
+        # return hk.Linear(vocab_size)(z_star)
 
     return forward_fn
 
@@ -237,9 +240,10 @@ def lm_loss_fn(forward_fn,
                data: Mapping[str, jnp.ndarray],
                is_training: bool = True) -> jnp.ndarray:
     """Compute the loss on data wrt params."""
-    #print('data.shape: {}'.format(data))
+    # print('data.shape: {}'.format(data))
     logits = forward_fn(params, rng, data, is_training)
     targets = jax.nn.one_hot(data['target'], vocab_size)
+    print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
     assert logits.shape == targets.shape
 
     mask = jnp.greater(data['obs'], 0)
@@ -444,11 +448,11 @@ def main(_):
         # TODO add to config file
         config = {
             "path": "/home/skhalid/Documents/datalake/",
-            "dataset": "ImageNet",  # ["ImageNet", "CIFAR10", "MNIST"]
+            "dataset": "CIFAR10",  # ["ImageNet", "CIFAR10", "MNIST"]
             "batch_size": FLAGS.batch_size,
             "transform": None,
             "n_threads": 1,
-            "epochs": 3,
+            "epochs": 2,
             "classes": 10
         }
 
@@ -461,7 +465,7 @@ def main(_):
         for epoch in range(config["epochs"]):
             for step, (x, y) in enumerate(ds_dict['dl_trn']):
                 x = preproc(x)
-                #print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
+                # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
                 data = {'obs': x, 'target': y}
                 if (step < MAX_STEPS):
                     if (epoch == 0 and step == 0):
@@ -485,25 +489,25 @@ def main(_):
                         logging.info({k: float(v)
                                       for k, v in metrics.items()})
 
-            # ============================ Evaluation logs ===========================
-            eval_trn = []
-            eval_tst = []
-            # for i, (x, y) in enumerate(ds_dict['dl_trn']):
-            #     train_acc = accuracy(state['params'],
-            #                          rng,
-            #                          x,
-            #                          jax.nn.one_hot(y, config["classes"]))
-            #     eval_trn.append(train_acc)
-            for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
-                x = preproc(x)
-                test_acc = accuracy(state['params'],
-                                    rng,
-                                    x,
-                                    jax.nn.one_hot(y, config["classes"]))
-                eval_tst.append(test_acc)
-            print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
-                  np.mean(eval_trn), np.mean(eval_tst)))
-            # ============================ Evaluation logs ===========================
+            # # ============================ Evaluation logs ===========================
+            # eval_trn = []
+            # eval_tst = []
+            # # for i, (x, y) in enumerate(ds_dict['dl_trn']):
+            # #     train_acc = accuracy(state['params'],
+            # #                          rng,
+            # #                          x,
+            # #                          jax.nn.one_hot(y, config["classes"]))
+            # #     eval_trn.append(train_acc)
+            # for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
+            #     x = preproc(x)
+            #     test_acc = accuracy(state['params'],
+            #                         rng,
+            #                         x,
+            #                         jax.nn.one_hot(y, config["classes"]))
+            #     eval_tst.append(test_acc)
+            # print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
+            #       np.mean(eval_trn), np.mean(eval_tst)))
+            # # ============================ Evaluation logs ===========================
 
 
 if __name__ == '__main__':
