@@ -28,36 +28,35 @@ $ python3 examples/transformer/train.py --dataset_path=/tmp/shakespeare.txt
 
 Note: Run with --alsologtostderr to see outputs.
 """
-
+import cv2
+from tqdm import tqdm
 from tkinter import X
-from jax.scipy.special import logsumexp
 import functools
 import os
 import pickle
 import time
 from typing import Any, Mapping
-import cv2
-from tqdm import tqdm
+
 
 from absl import app
 from absl import flags
 from absl import logging
-import haiku as hk
 # from examples.transformer import dataset
 # from examples.transformer import model
-import model
-import dataset
-from datasets import Datasets
-import dataset_resnet
-import jax
-import jax.numpy as jnp
-import numpy as np
-import optax
-from jax import grad, jit, vmap, random
+from models import model, resnet
+from utils.datasets import Datasets
 
+import jax
+import optax
+import haiku as hk
 import numpy as np
-from torch.utils import data
-from torchvision.datasets import MNIST
+import jax.numpy as jnp
+import utils.dataset as dataset
+# from jax.scipy.special import logsumexp
+# from jax import grad, jit, vmap, random
+
+# from torch.utils import data
+# from torchvision.datasets import MNIST
 
 flags.DEFINE_string('dataset_path', None,
                     'Single-file dataset location.')
@@ -77,40 +76,11 @@ flags.DEFINE_string('checkpoint_dir', '/tmp/haiku-transformer',
                     'Directory to store checkpoints.')
 
 FLAGS = flags.FLAGS
-LOG_EVERY = 1000
-MAX_STEPS = 10000  # 10**6
+LOG_EVERY = 100
+MAX_STEPS = 1000  # 10**6
 DEQ_FLAG = False
 LOG = False
-MODE = 'cls'  # ['text', 'cls', 'seg']
-
-
-def numpy_collate(batch):
-    if isinstance(batch[0], np.ndarray):
-        return np.stack(batch)
-    elif isinstance(batch[0], (tuple, list)):
-        transposed = zip(*batch)
-        return [numpy_collate(samples) for samples in transposed]
-    else:
-        return np.array(batch)
-
-
-class NumpyLoader(data.DataLoader):
-    def __init__(self, dataset, batch_size=1,
-                 shuffle=False, sampler=None,
-                 batch_sampler=None, num_workers=0,
-                 pin_memory=False, drop_last=False,
-                 timeout=0, worker_init_fn=None):
-        super(self.__class__, self).__init__(dataset,
-                                             batch_size=batch_size,
-                                             shuffle=shuffle,
-                                             sampler=sampler,
-                                             batch_sampler=batch_sampler,
-                                             num_workers=num_workers,
-                                             collate_fn=numpy_collate,
-                                             pin_memory=pin_memory,
-                                             drop_last=drop_last,
-                                             timeout=timeout,
-                                             worker_init_fn=worker_init_fn)
+MODE = 'text'  # ['text', 'cls', 'seg']
 
 
 def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
@@ -122,9 +92,11 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
         """Forward pass."""
 
         if (MODE == 'text'):
+            from models import model
             tokens = data['obs']
             input_mask = jnp.greater(tokens, 0)
             seq_length = tokens.shape[1]
+            vocab_size = tokens.shape[-1] * 2  # TODO-clean
 
             # Embed the input tokens and positions.
             embed_init = hk.initializers.TruncatedNormal(stddev=0.02)
@@ -133,7 +105,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             token_embs = token_embedding_map(tokens)
             positional_embeddings = hk.get_parameter(
                 'pos_embs', [seq_length, d_model], init=embed_init)
-            input_embeddings = x = token_embs + positional_embeddings
+            x = token_embs + positional_embeddings
             # Run the transformer over the inputs.
             # Transform the transformer
             transformer = model.Transformer(
@@ -147,17 +119,12 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 transformer_pure.init)(hk.next_rng_key(), x, input_mask, is_training)
 
             if (DEQ_FLAG):
-                from deq import deq
+                from models.deq import deq
                 max_iter = 10
                 solver = 1  # 0: Broyden ; 1: Anderson ; 2: secant
 
                 # Define a callable function for ease of access downstream
                 def f(params, rng, x, input_mask):
-                    # print('params: {}'.format(params))
-                    # print('rng: {}'.format(rng))
-                    # print('x: {}'.format(x))
-                    # print('input_mask: {}'.format(input_mask))
-                    # print('is_training: {}'.format(is_training))
                     return transformer_pure.apply(params, rng, x, input_mask, is_training=is_training)
 
                 z_star = deq(
@@ -166,18 +133,13 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 z_star = transformer(
                     x, input_mask, is_training)
 
+            return hk.Linear(vocab_size)(z_star)
+
         elif (MODE == 'cls'):
-            # TODO import resnet model here
             # Use `single` and `multi-scale` approach here
-            import resnet
             x = data['obs'].astype('float32')
-            rng_key = jax.random.PRNGKey(0)
-            batch_size = FLAGS.batch_size
             num_classes = 10
             # TODO: resize original imgs from 32 -> 224
-            # input_shape = (32, 32, 3, batch_size)
-            # step_size = 0.1
-            # num_steps = 10
 
             def resnet_fn(x, is_training):
                 model = resnet.ResNet18(
@@ -189,27 +151,22 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             vocab_size = num_classes
 
             if (DEQ_FLAG):
-                from deq import deq
+                from models.deq import deq
                 max_iter = 10
-                solver = 1  # 0: Broyden ; 1: Anderson ; 2: secant
+                solver = 0  # 0: Broyden ; 1: Anderson ; 2: secant
 
                 # Define a callable function for ease of access downstream
                 def f(params, state, rng, x):
-                    # print('params: {}'.format(params))
-                    # print('rng: {}'.format(rng))
-                    # print('x: {}'.format(x))
-                    # print('input_mask: {}'.format(input_mask))
-                    # print('is_training: {}'.format(is_training))
                     return model.apply(params, state, rng, x)
 
                 z_star = deq(
                     params, hk.next_rng_key(), x, f, max_iter, solver
                 )
             else:
-                # print('x: {}'.format(x.shape))
-                # print('init_params: {}'.format(init_params.shape))
                 z_star, state = model.apply(params, state, None,
                                             x, is_training=True)
+
+            return z_star
 
         elif (MODE == 'seg'):
             # TODO import resnet model here
@@ -223,12 +180,6 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
         #     # TODO import resnet model here
         #     # Use `single` and `multi-scale` approach here
         #     continue
-
-        # Reverse the embeddings (untied).
-        print("z_star: {}".format(z_star.shape))
-
-        return z_star
-        # return hk.Linear(vocab_size)(z_star)
 
     return forward_fn
 
@@ -355,37 +306,6 @@ class CheckpointingUpdater:
         return state, out
 
 
-# def one_hot(x, k, dtype=jnp.float32):
-#     """Create a one-hot encoding of x of size k."""
-#     return jnp.array(x[:, None] == jnp.arange(k), dtype)
-
-
-# def random_layer_params(m, n, key, scale=1e-2):
-#     w_key, b_key = random.split(key)
-#     return scale * random.normal(w_key, (n, m)), scale * random.normal(b_key, (n,))
-
-
-# def init_network_params(key):
-#     layer_sizes = [784, 512, 512, 10]
-#     keys = random.split(key, len(layer_sizes))
-#     return [random_layer_params(m, n, k) for m, n, k in zip(layer_sizes[:-1], layer_sizes[1:], keys)]
-
-
-# def relu(x):
-#     return jnp.maximum(0, x)
-
-
-# def predict(params, image):
-#     # per-example predictions
-#     activations = image
-#     for w, b in params[:-1]:
-#         outputs = jnp.dot(w, activations) + b
-#         activations = relu(outputs)
-
-#     final_w, final_b = params[-1]
-#     logits = jnp.dot(final_w, activations) + final_b
-#     return logits - logsumexp(logits)
-
 def preproc(x):
     x = np.expand_dims(x, axis=3) if len(x.shape) == 3 else x
     # TODO: fix
@@ -397,22 +317,37 @@ def preproc(x):
 
 
 def main(_):
+
+    # TODO add to config file
+    config = {
+        "path": "/home/skhalid/Documents/datalake/",
+        "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST"]
+        "batch_size": FLAGS.batch_size,
+        "transform": None,
+        "n_threads": 1,
+        "epochs": 2,
+        "classes": 10
+    }
+
     FLAGS.alsologtostderr = True  # Always log visibly.
     # Create the dataset.
     if (MODE == 'text'):
+        # TODO: move to datasets
         train_dataset = dataset.AsciiDataset(
-            FLAGS.dataset_path, FLAGS.batch_size, FLAGS.sequence_length)
+            config['path']+'shakespeare.txt', FLAGS.batch_size, FLAGS.sequence_length)
         vocab_size = train_dataset.vocab_size
         # Set up the model, loss, and updater.
         forward_fn = build_forward_fn(vocab_size, FLAGS.d_model, FLAGS.num_heads,
                                       FLAGS.num_layers, FLAGS.dropout_rate)
         forward_fn = hk.transform(forward_fn)
-        loss_fn = functools.partial(lm_loss_fn, forward_fn.apply, vocab_size)
+        loss_fn = functools.partial(
+            lm_loss_fn, forward_fn.apply, vocab_size)
     elif (MODE == 'cls'):
-        forward_fn = build_forward_fn(10, FLAGS.d_model, FLAGS.num_heads,
+        forward_fn = build_forward_fn(config['classes'], FLAGS.d_model, FLAGS.num_heads,
                                       FLAGS.num_layers, FLAGS.dropout_rate)
         forward_fn = hk.transform(forward_fn)
-        loss_fn = functools.partial(lm_loss_fn, forward_fn.apply, 10)
+        loss_fn = functools.partial(
+            lm_loss_fn, forward_fn.apply, config['classes'])
 
     optimizer = optax.chain(
         optax.clip_by_global_norm(FLAGS.grad_clip_value),
@@ -429,10 +364,11 @@ def main(_):
     prev_time = time.time()
 
     if (MODE == 'text'):
-        data = next(train_dataset, mode='train')
+        # TODO: Improve structure
+        data = next(train_dataset)
         state = updater.init(rng, data)
         for step in range(MAX_STEPS):
-            data = next(train_dataset, mode='test')
+            data = next(train_dataset)
             state, metrics = updater.update(state, data)
             # We use JAX runahead to mask data preprocessing and JAX dispatch overheads.
             # Using values from state/metrics too often will block the runahead and can
@@ -444,17 +380,6 @@ def main(_):
                 logging.info({k: float(v) for k, v in metrics.items()})
 
     elif (MODE == 'cls'):
-
-        # TODO add to config file
-        config = {
-            "path": "/home/skhalid/Documents/datalake/",
-            "dataset": "CIFAR10",  # ["ImageNet", "CIFAR10", "MNIST"]
-            "batch_size": FLAGS.batch_size,
-            "transform": None,
-            "n_threads": 1,
-            "epochs": 2,
-            "classes": 10
-        }
 
         # Get the dataset in the required format
         d = Datasets(config)
