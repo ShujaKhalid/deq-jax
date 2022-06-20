@@ -90,8 +90,8 @@ def rootfind(g: Callable, max_iter: int, solver: int, params: dict, rng: jnp.nda
             broyden(fun, x, max_iter, eps, *args)
         )['result']
     elif (solver == 1):
-        print("x: {}".format(x))
-        print("x.shape: {}".format(x.shape))
+        # print("x: {}".format(x))
+        # print("x.shape: {}".format(x.shape))
         result_info, state = jax.lax.stop_gradient(
             anderson(fun, history_size=5, maxiter=max_iter,
                      ridge=1e-6, tol=eps).run(x, *args)
@@ -99,15 +99,15 @@ def rootfind(g: Callable, max_iter: int, solver: int, params: dict, rng: jnp.nda
     elif (solver == 2):
         pytree_init = {'x1': np.zeros((2, 64, 128))}
         pytree_init_args = {'b1': np.zeros((2, 64))}
-        print(pytree_init)
-        print(pytree_init_args)
+        # print(pytree_init)
+        # print(pytree_init_args)
         result_info = jax.lax.stop_gradient(
             #secant(objective_fn=fun, initial_position=x)
             # TODO look at the format of PyTrees
             jaxopt.ScipyRootFinding(method='anderson', optimality_fun=fun, jit=False,
                                     tol=eps, has_aux=True).run(pytree_init, pytree_init_args)
         )
-        print(result_info)
+        # print(result_info)
     else:
         print('SOLVER not provided (rootfind)...')
     return result_info

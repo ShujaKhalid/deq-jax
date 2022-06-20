@@ -1,5 +1,6 @@
 import numpy as np
 from torch.utils import data
+from tabulate import tabulate
 
 
 class NumpyLoader(data.DataLoader):
@@ -29,3 +30,7 @@ def numpy_collate(batch):
         return [numpy_collate(samples) for samples in transposed]
     else:
         return np.array(batch)
+
+
+# def tabulate(d, headers):
+#     return (tabulate([(k,) + v for k, v in d.items()], headers=headers))

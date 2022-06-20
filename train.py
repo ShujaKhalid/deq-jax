@@ -29,6 +29,7 @@ $ python3 examples/transformer/train.py --dataset_path=/tmp/shakespeare.txt
 Note: Run with --alsologtostderr to see outputs.
 """
 import cv2
+import sys
 from tqdm import tqdm
 from tkinter import X
 import functools
@@ -41,6 +42,9 @@ from typing import Any, Mapping
 from absl import app
 from absl import flags
 from absl import logging
+import pandas as pd
+from termcolor import cprint
+
 # from examples.transformer import dataset
 # from examples.transformer import model
 from models import model, resnet
@@ -52,6 +56,7 @@ import haiku as hk
 import numpy as np
 import jax.numpy as jnp
 import utils.dataset as dataset
+from tabulate import tabulate
 # from jax.scipy.special import logsumexp
 # from jax import grad, jit, vmap, random
 
@@ -78,9 +83,9 @@ flags.DEFINE_string('checkpoint_dir', '/tmp/haiku-transformer',
 FLAGS = flags.FLAGS
 LOG_EVERY = 100
 MAX_STEPS = 1000  # 10**6
-DEQ_FLAG = True
+DEQ_FLAG = False
 LOG = False
-MODE = 'text'  # ['text', 'cls', 'seg']
+MODE = 'cls'  # ['text', 'cls', 'seg']
 
 
 def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
@@ -277,7 +282,7 @@ class CheckpointingUpdater:
         """Initialize experiment state."""
         if not os.path.exists(self._checkpoint_dir) or not self._checkpoint_paths():
             os.makedirs(self._checkpoint_dir, exist_ok=True)
-            print('self._checkpoint_dir: {}'.format(self._checkpoint_dir))
+            # print('self._checkpoint_dir: {}'.format(self._checkpoint_dir))
             # print('self.data: {}'.format(data))
             return self._inner.init(rng, data)
         else:
@@ -384,7 +389,8 @@ def main(_):
         # Get the dataset in the required format
         d = Datasets(config)
         ds_dict = d.get_datasets()
-        print('\n\n\nds_dict: {}\n\n\n'.format(ds_dict))
+        print(ds_dict['ds_trn'])
+        print(ds_dict['ds_tst'])
 
         # Train the model
         for epoch in range(config["epochs"]):
@@ -411,8 +417,23 @@ def main(_):
                             (time.time() - prev_time)
                         prev_time = time.time()
                         metrics.update({'steps_per_sec': steps_per_sec})
-                        logging.info({k: float(v)
-                                      for k, v in metrics.items()})
+                        # logging.info({k: float(v)
+                        #               for k, v in metrics.items()})
+                        # metrics = pd.DataFrame(
+                        #     metrics, index=[0], columns=metrics.keys())
+                        # print('===========================================')
+                        # print(tabulate(metrics, headers="keys", tablefmt="github"))
+
+                        # custom logging
+                        lng = len(metrics.keys())
+                        for i in range(lng):
+                            key = list(metrics.keys())[i]
+                            msg = key + ': ' + str(metrics[key])
+                            cprint(msg, 'green', attrs=['bold'], end='\n') if i == lng-1 else cprint(
+                                msg + ' --- ', 'green', attrs=['bold'], end=' ')
+
+                        # cprint("Attention!", 'red', attrs=[
+                        #     'bold'], file=sys.stderr)
 
             # # ============================ Evaluation logs ===========================
             # eval_trn = []

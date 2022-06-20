@@ -102,12 +102,11 @@ class Transformer(hk.Module):
         init_scale = 2. / self._num_layers
         dropout_rate = self._dropout_rate if is_training else 0.
         if mask is not None:
-            print(mask)
             mask = mask[:, None, None, :]
 
         # Note: names chosen to approximately match those used in the GPT-2 code;
         # see https://github.com/openai/gpt-2/blob/master/src/model.py.
-        print("self._num_layers: {}".format(self._num_layers))
+        # print("self._num_layers: {}".format(self._num_layers))
         for i in range(self._num_layers):
             h_norm = layer_norm(h, name=f'h{i}_ln_1')
             h_attn = CausalSelfAttention(

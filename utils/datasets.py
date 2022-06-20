@@ -30,8 +30,8 @@ class Datasets():
                 self.data_loader_test == None):
             raise Exception('Error during dataset initialization...')
 
-        print("\nself.dataset_train: {}".format(self.dataset_train))
-        print("\nself.dataset_test: {}".format(self.dataset_test))
+        #print("\nself.dataset_train: {}".format(self.dataset_train))
+        #print("\nself.dataset_test: {}".format(self.dataset_test))
 
         return
 
