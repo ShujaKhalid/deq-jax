@@ -1,6 +1,10 @@
 import numpy as np
+import haiku as hk
+import pandas as pd
 from torch.utils import data
 from tabulate import tabulate
+from termcolor import cprint
+from models.deq import deq
 
 
 class NumpyLoader(data.DataLoader):
@@ -34,3 +38,47 @@ def numpy_collate(batch):
 
 # def tabulate(d, headers):
 #     return (tabulate([(k,) + v for k, v in d.items()], headers=headers))
+def logger(data, order):
+    # custom logging
+    lng = len(order)
+    for i, key in enumerate(order):
+        msg = key + ': ' + \
+            str(data[key]).zfill(6) if type(
+                data[key]) == int else str(data[key])
+        cprint(msg, 'green', attrs=['bold'], end='\n') if i == lng-1 else cprint(
+            msg + ' --- ', 'green', attrs=['bold'], end=' ')
+
+
+def run(flag, mode, params, x, model, input_mask, max_iter=10, solver=0):
+    '''
+    gen_stats:
+    max_iter = 10
+    solver = 0  # 0: Broyden ; 1: Anderson ; 2: secant
+    '''
+    if (mode == 'text'):
+        if (flag):
+
+           # Define a callable function for ease of access downstream
+            def f(params, rng, x, input_mask):
+                return model.apply(params, rng, x, input_mask, is_training=True)
+
+            z_star = deq(
+                params, hk.next_rng_key(), x, f, max_iter, solver, input_mask)
+        else:
+            z_star = model(
+                x, input_mask, is_training=True)
+    elif (mode == 'cls'):
+        if (flag):
+
+            # Define a callable function for ease of access downstream
+            def f(params, state, rng, x):
+                return model.apply(params, state, rng, x)
+
+            z_star = deq(
+                params, hk.next_rng_key(), x, f, max_iter, solver
+            )
+        else:
+            z_star, state = model.apply(params, state, None,
+                                        x, is_training=True)
+
+    return z_star

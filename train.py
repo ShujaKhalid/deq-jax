@@ -42,8 +42,6 @@ from typing import Any, Mapping
 from absl import app
 from absl import flags
 from absl import logging
-import pandas as pd
-from termcolor import cprint
 
 # from examples.transformer import dataset
 # from examples.transformer import model
@@ -56,7 +54,9 @@ import haiku as hk
 import numpy as np
 import jax.numpy as jnp
 import utils.dataset as dataset
-from tabulate import tabulate
+from utils.utils import logger
+from utils.utils import run
+# from tabulate import tabulate
 # from jax.scipy.special import logsumexp
 # from jax import grad, jit, vmap, random
 
@@ -83,7 +83,7 @@ flags.DEFINE_string('checkpoint_dir', '/tmp/haiku-transformer',
 FLAGS = flags.FLAGS
 LOG_EVERY = 100
 MAX_STEPS = 1000  # 10**6
-DEQ_FLAG = True
+DEQ_FLAG = False
 LOG = False
 MODE = 'cls'  # ['text', 'cls', 'seg']
 
@@ -123,20 +123,8 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             inner_params = hk.experimental.lift(
                 transformer_pure.init)(hk.next_rng_key(), x, input_mask, is_training)
 
-            if (DEQ_FLAG):
-                from models.deq import deq
-                max_iter = 10
-                solver = 1  # 0: Broyden ; 1: Anderson ; 2: secant
-
-                # Define a callable function for ease of access downstream
-                def f(params, rng, x, input_mask):
-                    return transformer_pure.apply(params, rng, x, input_mask, is_training=is_training)
-
-                z_star = deq(
-                    inner_params, hk.next_rng_key(), x, f, max_iter, solver, input_mask)
-            else:
-                z_star = transformer(
-                    x, input_mask, is_training)
+            z_star = run(DEQ_FLAG, MODE, inner_params, x,
+                         transformer_pure,  input_mask, max_iter=10, solver=0)
 
             return hk.Linear(vocab_size)(z_star)
 
@@ -152,24 +140,11 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 return model(x, is_training=is_training)
 
             model = hk.transform_with_state(resnet_fn)
-            params, state = model.init(hk.next_rng_key(), x, is_training=True)
+            params, _ = model.init(hk.next_rng_key(), x, is_training=True)
             vocab_size = num_classes
 
-            if (DEQ_FLAG):
-                from models.deq import deq
-                max_iter = 10
-                solver = 0  # 0: Broyden ; 1: Anderson ; 2: secant
-
-                # Define a callable function for ease of access downstream
-                def f(params, state, rng, x):
-                    return model.apply(params, state, rng, x)
-
-                z_star = deq(
-                    params, hk.next_rng_key(), x, f, max_iter, solver
-                )
-            else:
-                z_star, state = model.apply(params, state, None,
-                                            x, is_training=True)
+            z_star = run(DEQ_FLAG, MODE, params, x,
+                         model, input_mask, max_iter=10, solver=0)
 
             return z_star
 
@@ -382,7 +357,8 @@ def main(_):
                 steps_per_sec = LOG_EVERY / (time.time() - prev_time)
                 prev_time = time.time()
                 metrics.update({'steps_per_sec': steps_per_sec})
-                logging.info({k: float(v) for k, v in metrics.items()})
+                logger(metrics, order=[
+                    'step', 'loss', 'steps_per_sec'])
 
     elif (MODE == 'cls'):
 
@@ -424,13 +400,8 @@ def main(_):
                         # print('===========================================')
                         # print(tabulate(metrics, headers="keys", tablefmt="github"))
 
-                        # custom logging
-                        lng = len(metrics.keys())
-                        for i in range(lng):
-                            key = list(metrics.keys())[i]
-                            msg = key + ': ' + str(metrics[key])
-                            cprint(msg, 'green', attrs=['bold'], end='\n') if i == lng-1 else cprint(
-                                msg + ' --- ', 'green', attrs=['bold'], end=' ')
+                        logger(metrics, order=[
+                               'step', 'loss', 'steps_per_sec'])
 
                         # cprint("Attention!", 'red', attrs=[
                         #     'bold'], file=sys.stderr)

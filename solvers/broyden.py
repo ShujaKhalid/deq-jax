@@ -113,8 +113,18 @@ def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> d
     # For memory constraints J = U * V^T
     # So J = U_0 * V^T_0 + U_1 * V^T_1 + ..
     # For fast calculation of inv_jacobian (approximately) we store as Us and VTs
+    print("Input dimensions: {}".format(x0.shape))
+    if (len(x0.shape) == 3):
+        # text
+        bsz, total_hsize, seq_len = x0.shape
+        Us = jnp.zeros((bsz, total_hsize, seq_len, max_iter))
+        VTs = jnp.zeros((bsz, max_iter, total_hsize, seq_len))
+    else:
+        # text
+        h, w, c, bsz = x0.shape
+        Us = jnp.zeros((bsz, total_hsize, seq_len, max_iter))
+        VTs = jnp.zeros((bsz, max_iter, total_hsize, seq_len))
 
-    bsz, total_hsize, seq_len = x0.shape
     gx = g(x0, *args)  # (bsz, 2d, L')
     init_objective = jnp.linalg.norm(gx)
 
@@ -134,8 +144,8 @@ def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> d
         gx=gx,
         objective=init_objective,
         trace=trace,
-        Us=jnp.zeros((bsz, total_hsize, seq_len, max_iter)),
-        VTs=jnp.zeros((bsz, max_iter, total_hsize, seq_len)),
+        Us=Us,
+        VTs=VTs,
         prot_break=False,
         prog_break=False,
     )
