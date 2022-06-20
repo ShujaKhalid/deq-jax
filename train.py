@@ -52,6 +52,7 @@ import jax
 import optax
 import haiku as hk
 import numpy as np
+import torchvision
 import jax.numpy as jnp
 import utils.dataset as dataset
 from utils.utils import logger
@@ -85,7 +86,20 @@ LOG_EVERY = 100
 MAX_STEPS = 1000  # 10**6
 DEQ_FLAG = False
 LOG = False
-MODE = 'cls'  # ['text', 'cls', 'seg']
+MODE = 'seg'  # ['text', 'cls', 'seg']
+
+# TODO add to config file
+config = {
+    "path": "/home/skhalid/Documents/datalake/",
+    "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
+    "batch_size": 16,
+    "transform": None,
+    "n_threads": 1,
+    "model_type": "segmentation",
+    "model_name": "deeplabv3_resnet50",
+    "epochs": 2,
+    "classes": 10
+}
 
 
 def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
@@ -119,20 +133,17 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             transformer_pure = hk.transform(transformer)
 
             # lift params
-            h = jnp.zeros_like(x)
-            inner_params = hk.experimental.lift(
-                transformer_pure.init)(hk.next_rng_key(), x, input_mask, is_training)
+            #h = jnp.zeros_like(x)
 
-            z_star = run(DEQ_FLAG, MODE, inner_params, x,
-                         transformer_pure,  input_mask, max_iter=10, solver=0)
+            z_star = run(DEQ_FLAG, MODE, x,
+                         transformer_pure, input_mask, max_iter=10, solver=0)
 
             return hk.Linear(vocab_size)(z_star)
 
         elif (MODE == 'cls'):
             # Use `single` and `multi-scale` approach here
             x = data['obs'].astype('float32')
-            num_classes = 10
-            # TODO: resize original imgs from 32 -> 224
+            num_classes = config["classes"]
 
             def resnet_fn(x, is_training):
                 model = resnet.ResNet18(
@@ -140,26 +151,30 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 return model(x, is_training=is_training)
 
             model = hk.transform_with_state(resnet_fn)
-            params, _ = model.init(hk.next_rng_key(), x, is_training=True)
-            vocab_size = num_classes
-
-            z_star = run(DEQ_FLAG, MODE, params, x,
-                         model, input_mask, max_iter=10, solver=0)
+            z_star = run(DEQ_FLAG, MODE, x,
+                         model, input_mask=None, max_iter=10, solver=0)
 
             return z_star
 
         elif (MODE == 'seg'):
             # TODO import resnet model here
             # Use `single` and `multi-scale` approach here
-            pass
-        # elif (MODE=='clsTrans'):
-        #     # TODO import resnet model here
-        #     # Use `single` and `multi-scale` approach here
-        #     continue
-        # elif (MODE=='segTrans'):
-        #     # TODO import resnet model here
-        #     # Use `single` and `multi-scale` approach here
-        #     continue
+            x = data['obs'].astype('float32')
+            num_classes = config["classes"]
+
+            def seg_fn(x, is_training):
+                model_type = config["model_type"]
+                model_name = config["model_name"]
+                model = getattr(getattr(torchvision.models,
+                                model_type), model_name)
+                print(model)
+                return model(x, is_training=is_training)
+
+            model = hk.transform_with_state(seg_fn)
+            z_star = run(DEQ_FLAG, MODE, x,
+                         model, input_mask=False, max_iter=10, solver=0)
+
+            return z_star
 
     return forward_fn
 
@@ -290,31 +305,19 @@ def preproc(x):
     x = np.expand_dims(x, axis=3) if len(x.shape) == 3 else x
     # TODO: fix
     x = np.repeat(x, 3, axis=3) if x.shape[3] == 1 else x
-    x = np.array([cv2.resize(v, (32, 32))
-                  for v in x]) if x.shape[1] != 32 else x
+    # x = np.array([cv2.resize(v, (32, 32))
+    #               for v in x]) if x.shape[1] != 32 else x
     x = np.transpose(x, (1, 2, 3, 0))
     return x
 
 
 def main(_):
-
-    # TODO add to config file
-    config = {
-        "path": "/home/skhalid/Documents/datalake/",
-        "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST"]
-        "batch_size": FLAGS.batch_size,
-        "transform": None,
-        "n_threads": 1,
-        "epochs": 2,
-        "classes": 10
-    }
-
     FLAGS.alsologtostderr = True  # Always log visibly.
     # Create the dataset.
     if (MODE == 'text'):
         # TODO: move to datasets
         train_dataset = dataset.AsciiDataset(
-            config['path']+'shakespeare.txt', FLAGS.batch_size, FLAGS.sequence_length)
+            config['path']+'shakespeare.txt', config["batch_size"], FLAGS.sequence_length)
         vocab_size = train_dataset.vocab_size
         # Set up the model, loss, and updater.
         forward_fn = build_forward_fn(vocab_size, FLAGS.d_model, FLAGS.num_heads,
@@ -323,6 +326,12 @@ def main(_):
         loss_fn = functools.partial(
             lm_loss_fn, forward_fn.apply, vocab_size)
     elif (MODE == 'cls'):
+        forward_fn = build_forward_fn(config['classes'], FLAGS.d_model, FLAGS.num_heads,
+                                      FLAGS.num_layers, FLAGS.dropout_rate)
+        forward_fn = hk.transform(forward_fn)
+        loss_fn = functools.partial(
+            lm_loss_fn, forward_fn.apply, config['classes'])
+    elif (MODE == 'seg'):
         forward_fn = build_forward_fn(config['classes'], FLAGS.d_model, FLAGS.num_heads,
                                       FLAGS.num_layers, FLAGS.dropout_rate)
         forward_fn = hk.transform(forward_fn)
@@ -402,6 +411,72 @@ def main(_):
 
                         logger(metrics, order=[
                                'step', 'loss', 'steps_per_sec'])
+
+                        # cprint("Attention!", 'red', attrs=[
+                        #     'bold'], file=sys.stderr)
+
+            # # ============================ Evaluation logs ===========================
+            # eval_trn = []
+            # eval_tst = []
+            # # for i, (x, y) in enumerate(ds_dict['dl_trn']):
+            # #     train_acc = accuracy(state['params'],
+            # #                          rng,
+            # #                          x,
+            # #                          jax.nn.one_hot(y, config["classes"]))
+            # #     eval_trn.append(train_acc)
+            # for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
+            #     x = preproc(x)
+            #     test_acc = accuracy(state['params'],
+            #                         rng,
+            #                         x,
+            #                         jax.nn.one_hot(y, config["classes"]))
+            #     eval_tst.append(test_acc)
+            # print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
+            #       np.mean(eval_trn), np.mean(eval_tst)))
+            # # ============================ Evaluation logs ===========================
+
+    elif (MODE == 'seg'):
+
+        # Get the dataset in the required format
+        d = Datasets(config)
+        ds_dict = d.get_datasets()
+        print(ds_dict['ds_trn'])
+        print(ds_dict['ds_tst'])
+
+        # Train the model
+        for epoch in range(config["epochs"]):
+            for step, (x, y) in enumerate(ds_dict['dl_trn']):
+                x = preproc(x)
+                # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
+                data = {'obs': x, 'target': y}
+                if (step < MAX_STEPS):
+                    if (epoch == 0 and step == 0):
+                        # Initialize state
+                        state = updater.init(rng, data)
+
+                    def accuracy(params, rng, x, y):
+                        target_class = jnp.argmax(y, axis=1)
+                        predicted_class = jnp.argmax(
+                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
+                        return jnp.mean(predicted_class == target_class)
+
+                    state, metrics = updater.update(state, data)
+
+                    # Training logs
+                    if step % LOG_EVERY == 0:
+                        steps_per_sec = LOG_EVERY / \
+                            (time.time() - prev_time)
+                        prev_time = time.time()
+                        metrics.update({'steps_per_sec': steps_per_sec})
+                        # logging.info({k: float(v)
+                        #               for k, v in metrics.items()})
+                        # metrics = pd.DataFrame(
+                        #     metrics, index=[0], columns=metrics.keys())
+                        # print('===========================================')
+                        # print(tabulate(metrics, headers="keys", tablefmt="github"))
+
+                        logger(metrics, order=[
+                            'step', 'loss', 'steps_per_sec'])
 
                         # cprint("Attention!", 'red', attrs=[
                         #     'bold'], file=sys.stderr)

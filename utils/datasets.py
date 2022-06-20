@@ -64,6 +64,15 @@ class Datasets():
                 root=self.dataset_path,
                 split="train" if train else "val",
                 transform=make_jax_friendly)
+        elif (self.dataset_name == "Cityscapes"):
+            return getattr(torchvision.datasets, self.dataset_name)(
+                root=self.dataset_path+"cityscapes",
+                split="train" if train else "val",
+                # ["coarse", "fine"]
+                mode="coarse",
+                # ["instance", "semantic", "polygon", "color"]
+                target_type="semantic",
+                transform=make_jax_friendly)
         else:
             return getattr(torchvision.datasets, self.dataset_name)(
                 root=self.dataset_path,
