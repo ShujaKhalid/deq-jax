@@ -86,7 +86,7 @@ LOG_EVERY = 100
 MAX_STEPS = 10000  # 10**6
 DEQ_FLAG = False
 LOG = False
-MODE = 'seg'  # ['text', 'cls', 'seg', 'depth']
+MODE = 'cls'  # ['text', 'cls', 'seg', 'depth']
 
 # TODO add to config file
 config = {

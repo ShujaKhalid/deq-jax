@@ -82,16 +82,16 @@ class SelfAttention(hk.Module):
         ]) if project_out else IdentityLayer()
 
     def __call__(self, x):
-        print("x.shape (before to_qkv): {}".format(x.shape))
+        # print("x.shape (before to_qkv): {}".format(x.shape))
         qkv = self.to_qkv(x)
-        print("qkv.shape (after to_qkv): {}".format(qkv.shape))
+        # print("qkv.shape (after to_qkv): {}".format(qkv.shape))
         qkv = jnp.split(qkv, 3, axis=-1)
         #print("qkv.shape (before rearrange): {}".format(qkv.shape))
         q, k, v = map(lambda t: rearrange(
             t, 'b n (h d) -> b h n d', h=self.heads), qkv)
-        print("q.shape (after map): {}".format(q.shape))
-        print("k.shape (after map): {}".format(k.shape))
-        print("v.shape (after map): {}".format(v.shape))
+        # print("q.shape (after map): {}".format(q.shape))
+        # print("k.shape (after map): {}".format(k.shape))
+        # print("v.shape (after map): {}".format(v.shape))
 
         # TODO: got this working but the paper implementation is different
         dots = jnp.einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
@@ -127,7 +127,7 @@ class Transformer(hk.Module):
         for _ in range(self.depth):
             # fc(gelu(fc(norm(SelfAttention(norm(x))))))
             x = self.residual_norm_attention(x)
-            print("x.shape before res: {}".format(x.shape))
+            # print("x.shape before res: {}".format(x.shape))
             x = self.forward_res(x)
-            print("x.shape after res: {}".format(x.shape))
+            # print("x.shape after res: {}".format(x.shape))
         return x
