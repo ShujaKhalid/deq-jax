@@ -56,20 +56,21 @@ def run(flag, mode, x, model, input_mask, max_iter=10, solver=0):
     solver = 0  # 0: Broyden ; 1: Anderson ; 2: secant
     '''
     if (mode == 'text'):
+        rng = hk.next_rng_key()
+        params = hk.experimental.lift(
+            model.init)(rng, x, input_mask, is_training=True)
+        # Define a callable function for ease of access downstream
         if (flag):
-            params = hk.experimental.lift(
-                model.init)(hk.next_rng_key(), x, input_mask, is_training=True)
-           # Define a callable function for ease of access downstream
-
             def f(params, rng, x, input_mask):
                 return model.apply(params, rng, x, input_mask, is_training=True)
 
             z_star = deq(
                 params, hk.next_rng_key(), x, f, max_iter, solver, input_mask)
         else:
-            z_star = model(
-                x, input_mask, is_training=True)
+            z_star = model.apply(params, rng,
+                                 x, input_mask, is_training=True)
     elif (mode == 'cls'):
+        print("Initializing weights...")
         params, state = model.init(hk.next_rng_key(), x, is_training=True)
         if (flag):
             # Define a callable function for ease of access downstream
@@ -79,12 +80,9 @@ def run(flag, mode, x, model, input_mask, max_iter=10, solver=0):
             z_star = deq(
                 params, hk.next_rng_key(), x, f, max_iter, solver
             )
-            print("z_star.shape: {}".format(z_star.shape))
         else:
             z_star, state = model.apply(params, state, None,
                                         x, is_training=True)
-            print("z_star.shape: {}".format(z_star.shape))
-
     elif (mode == 'seg'):
         params, state = model.init(hk.next_rng_key(), x, is_training=True)
         if (flag):
@@ -95,10 +93,8 @@ def run(flag, mode, x, model, input_mask, max_iter=10, solver=0):
             z_star = deq(
                 params, hk.next_rng_key(), x, f, max_iter, solver
             )
-            print("z_star.shape: {}".format(z_star.shape))
         else:
             z_star, state = model.apply(params, state, None,
                                         x, is_training=True)
-            print("z_star.shape: {}".format(z_star.shape))
 
     return z_star

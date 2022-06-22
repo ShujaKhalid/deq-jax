@@ -45,7 +45,7 @@ from absl import logging
 
 # from examples.transformer import dataset
 # from examples.transformer import model
-from models import model, resnet
+from models import resnet, transformer_lm
 from utils.datasets import Datasets
 
 import jax
@@ -86,17 +86,17 @@ LOG_EVERY = 100
 MAX_STEPS = 1000  # 10**6
 DEQ_FLAG = False
 LOG = False
-MODE = 'cls'  # ['text', 'cls', 'seg']
+MODE = 'seg'  # ['text', 'cls', 'seg']
 
 # TODO add to config file
 config = {
     "path": "/home/skhalid/Documents/datalake/",
     "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
-    "batch_size": 16,
+    "batch_size": 128,
     "transform": None,
     "n_threads": 1,
-    "model_type": "segmentation",
-    "model_name": "deeplabv3_resnet50",
+    # "model_type": "segmentation",
+    # "model_name": "deeplabv3_resnet50",
     "epochs": 2,
     "classes": 10
 }
@@ -111,7 +111,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
         """Forward pass."""
 
         if (MODE == 'text'):
-            from models import model
+            from models import transformer_lm
             tokens = data['obs']
             input_mask = jnp.greater(tokens, 0)
             seq_length = tokens.shape[1]
@@ -127,7 +127,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             x = token_embs + positional_embeddings
             # Run the transformer over the inputs.
             # Transform the transformer
-            transformer = model.Transformer(
+            transformer = transformer_lm.Transformer(
                 num_heads=num_heads, num_layers=num_layers, dropout_rate=dropout_rate
             )
             transformer_pure = hk.transform(transformer)
@@ -141,7 +141,6 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             return hk.Linear(vocab_size)(z_star)
 
         elif (MODE == 'cls'):
-            # Use `single` and `multi-scale` approach here
             x = data['obs'].astype('float32')
             num_classes = config["classes"]
 
@@ -150,29 +149,33 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                     num_classes=num_classes, resnet_v2=True)
                 return model(x, is_training=is_training)
 
-            model = hk.transform_with_state(resnet_fn)
+            transformer_cv = hk.transform_with_state(resnet_fn)
             z_star = run(DEQ_FLAG, MODE, x,
-                         model, input_mask=None, max_iter=10, solver=0)
+                         transformer_cv, input_mask=None, max_iter=10, solver=0)
 
             return z_star
 
         elif (MODE == 'seg'):
-            # TODO import resnet model here
-            # Use `single` and `multi-scale` approach here
+            from models.transformer_cv import TransformerCV
             x = data['obs'].astype('float32')
             num_classes = config["classes"]
 
             def seg_fn(x, is_training):
-                model_type = config["model_type"]
-                model_name = config["model_name"]
-                model = getattr(getattr(torchvision.models,
-                                model_type), model_name)
-                print(model)
-                return model(x, is_training=is_training)
+                # TODO: move to config
+                patch_size = 4
+                num_heads = 3
+                depth = 3
+                mode = MODE
+                latent_dims = [128, 128, 128]
+                resample_dim = 256  # TODO: from paper
+                model = TransformerCV(x, patch_size, num_heads, num_classes,
+                                      depth, resample_dim, mode, latent_dims=latent_dims)
+                # init_params = model.init(jax.random.PRNGKey(0), x)
+                return model(x)
 
-            model = hk.transform_with_state(seg_fn)
+            transformer_seg = hk.transform_with_state(seg_fn)
             z_star = run(DEQ_FLAG, MODE, x,
-                         model, input_mask=False, max_iter=10, solver=0)
+                         transformer_seg, input_mask=False, max_iter=10, solver=0)
 
             return z_star
 
@@ -186,15 +189,43 @@ def lm_loss_fn(forward_fn,
                data: Mapping[str, jnp.ndarray],
                is_training: bool = True) -> jnp.ndarray:
     """Compute the loss on data wrt params."""
-    # print('data.shape: {}'.format(data))
     logits = forward_fn(params, rng, data, is_training)
     targets = jax.nn.one_hot(data['target'], vocab_size)
     print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
     assert logits.shape == targets.shape
 
     mask = jnp.greater(data['obs'], 0)
-    loss = -jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1)
+    loss = jnp.sum(-jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1))
     loss = jnp.sum(loss * mask) / jnp.sum(mask)
+    return loss
+
+
+def vm_loss_fn(forward_fn,
+               classes: int,
+               params,
+               rng,
+               data: Mapping[str, jnp.ndarray],
+               is_training: bool = True) -> jnp.ndarray:
+    """Compute the loss on data wrt params."""
+    # print('data.shape: {}'.format(data))
+    logits = forward_fn(params, rng, data, is_training)
+    targets = jax.nn.one_hot(data['target'], classes)
+    print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
+    assert logits.shape == targets.shape
+
+    # mask = jnp.greater(data['obs'], 0)
+    # print("mask: {}".format(mask))
+    # loss = -jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1)
+    loss = jnp.sum(-jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1))
+    print("loss: {}".format(loss))
+    # loss = jnp.sum(loss * mask) / jnp.sum(mask)
+    # print("loss: {}".format(loss))
+    return loss
+
+
+# TODO: custom segmentation loss
+def seg_loff_fn():
+    loss = 0
     return loss
 
 
@@ -272,8 +303,6 @@ class CheckpointingUpdater:
         """Initialize experiment state."""
         if not os.path.exists(self._checkpoint_dir) or not self._checkpoint_paths():
             os.makedirs(self._checkpoint_dir, exist_ok=True)
-            # print('self._checkpoint_dir: {}'.format(self._checkpoint_dir))
-            # print('self.data: {}'.format(data))
             return self._inner.init(rng, data)
         else:
             checkpoint = os.path.join(self._checkpoint_dir,
@@ -307,7 +336,8 @@ def preproc(x):
     x = np.repeat(x, 3, axis=3) if x.shape[3] == 1 else x
     # x = np.array([cv2.resize(v, (32, 32))
     #               for v in x]) if x.shape[1] != 32 else x
-    x = np.transpose(x, (1, 2, 3, 0))
+    # x = np.transpose(x, (1, 2, 3, 0))
+    # x = np.transpose(x, (0, 3, 1, 2))
     return x
 
 
@@ -330,13 +360,13 @@ def main(_):
                                       FLAGS.num_layers, FLAGS.dropout_rate)
         forward_fn = hk.transform(forward_fn)
         loss_fn = functools.partial(
-            lm_loss_fn, forward_fn.apply, config['classes'])
+            vm_loss_fn, forward_fn.apply, config['classes'])
     elif (MODE == 'seg'):
         forward_fn = build_forward_fn(config['classes'], FLAGS.d_model, FLAGS.num_heads,
                                       FLAGS.num_layers, FLAGS.dropout_rate)
         forward_fn = hk.transform(forward_fn)
         loss_fn = functools.partial(
-            lm_loss_fn, forward_fn.apply, config['classes'])
+            vm_loss_fn, forward_fn.apply, config['classes'])
 
     optimizer = optax.chain(
         optax.clip_by_global_norm(FLAGS.grad_clip_value),
@@ -415,25 +445,25 @@ def main(_):
                         # cprint("Attention!", 'red', attrs=[
                         #     'bold'], file=sys.stderr)
 
-            # # ============================ Evaluation logs ===========================
-            # eval_trn = []
-            # eval_tst = []
-            # # for i, (x, y) in enumerate(ds_dict['dl_trn']):
-            # #     train_acc = accuracy(state['params'],
-            # #                          rng,
-            # #                          x,
-            # #                          jax.nn.one_hot(y, config["classes"]))
-            # #     eval_trn.append(train_acc)
-            # for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
-            #     x = preproc(x)
-            #     test_acc = accuracy(state['params'],
-            #                         rng,
-            #                         x,
-            #                         jax.nn.one_hot(y, config["classes"]))
-            #     eval_tst.append(test_acc)
-            # print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
-            #       np.mean(eval_trn), np.mean(eval_tst)))
-            # # ============================ Evaluation logs ===========================
+            # ============================ Evaluation logs ===========================
+            eval_trn = []
+            eval_tst = []
+            # for i, (x, y) in enumerate(ds_dict['dl_trn']):
+            #     train_acc = accuracy(state['params'],
+            #                          rng,
+            #                          x,
+            #                          jax.nn.one_hot(y, config["classes"]))
+            #     eval_trn.append(train_acc)
+            for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
+                x = preproc(x)
+                test_acc = accuracy(state['params'],
+                                    rng,
+                                    x,
+                                    jax.nn.one_hot(y, config["classes"]))
+                eval_tst.append(test_acc)
+            print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
+                  np.mean(eval_trn), np.mean(eval_tst)))
+            # ============================ Evaluation logs ===========================
 
     elif (MODE == 'seg'):
 
