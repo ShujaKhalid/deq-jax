@@ -83,7 +83,7 @@ flags.DEFINE_string('checkpoint_dir', '/tmp/haiku-transformer',
 
 FLAGS = flags.FLAGS
 LOG_EVERY = 100
-MAX_STEPS = 1000  # 10**6
+MAX_STEPS = 10000  # 10**6
 DEQ_FLAG = False
 LOG = False
 MODE = 'seg'  # ['text', 'cls', 'seg', 'depth']
@@ -92,12 +92,12 @@ MODE = 'seg'  # ['text', 'cls', 'seg', 'depth']
 config = {
     "path": "/home/skhalid/Documents/datalake/",
     "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
-    "batch_size": 32,
+    "batch_size": 128,
     "transform": None,
     "n_threads": 1,
     # "model_type": "segmentation",
     # "model_name": "deeplabv3_resnet50",
-    "epochs": 2,
+    "epochs": 10,
     "classes": 10
 }
 
@@ -511,25 +511,25 @@ def main(_):
                         # cprint("Attention!", 'red', attrs=[
                         #     'bold'], file=sys.stderr)
 
-            # # ============================ Evaluation logs ===========================
-            # eval_trn = []
-            # eval_tst = []
-            # # for i, (x, y) in enumerate(ds_dict['dl_trn']):
-            # #     train_acc = accuracy(state['params'],
-            # #                          rng,
-            # #                          x,
-            # #                          jax.nn.one_hot(y, config["classes"]))
-            # #     eval_trn.append(train_acc)
-            # for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
-            #     x = preproc(x)
-            #     test_acc = accuracy(state['params'],
-            #                         rng,
-            #                         x,
-            #                         jax.nn.one_hot(y, config["classes"]))
-            #     eval_tst.append(test_acc)
-            # print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
-            #       np.mean(eval_trn), np.mean(eval_tst)))
-            # # ============================ Evaluation logs ===========================
+            # ============================ Evaluation logs ===========================
+            eval_trn = []
+            eval_tst = []
+            # for i, (x, y) in enumerate(ds_dict['dl_trn']):
+            #     train_acc = accuracy(state['params'],
+            #                          rng,
+            #                          x,
+            #                          jax.nn.one_hot(y, config["classes"]))
+            #     eval_trn.append(train_acc)
+            for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
+                x = preproc(x)
+                test_acc = accuracy(state['params'],
+                                    rng,
+                                    x,
+                                    jax.nn.one_hot(y, config["classes"]))
+                eval_tst.append(test_acc)
+            print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
+                  np.mean(eval_trn), np.mean(eval_tst)))
+            # ============================ Evaluation logs ===========================
 
 
 if __name__ == '__main__':
