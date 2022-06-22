@@ -86,13 +86,13 @@ LOG_EVERY = 100
 MAX_STEPS = 1000  # 10**6
 DEQ_FLAG = False
 LOG = False
-MODE = 'seg'  # ['text', 'cls', 'seg']
+MODE = 'seg'  # ['text', 'cls', 'seg', 'depth']
 
 # TODO add to config file
 config = {
     "path": "/home/skhalid/Documents/datalake/",
     "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
-    "batch_size": 128,
+    "batch_size": 32,
     "transform": None,
     "n_threads": 1,
     # "model_type": "segmentation",
@@ -165,11 +165,11 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 patch_size = 4
                 num_heads = 3
                 depth = 3
-                mode = MODE
+                vit_mode = 'cls'
                 latent_dims = [128, 128, 128]
                 resample_dim = 256  # TODO: from paper
-                model = TransformerCV(x, patch_size, num_heads, num_classes,
-                                      depth, resample_dim, mode, latent_dims=latent_dims)
+                model = TransformerCV(x.shape, patch_size, num_heads, num_classes,
+                                      depth, resample_dim, vit_mode, latent_dims=latent_dims)
                 # init_params = model.init(jax.random.PRNGKey(0), x)
                 return model(x)
 

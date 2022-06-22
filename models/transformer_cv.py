@@ -1,51 +1,56 @@
 import jax
-import flax.linen as nn
+import haiku as hk
 import numpy as np
+import jax.numpy as jnp
 
 from models.layers import Transformer
 
 
-class Interpolate(nn.Module):
+class Interpolate(hk.Module):
     def __init__(self, scale_factor, mode='bilinear', align_corners=True):
+        super(Interpolate, self).__init__()
         self.scale_factor = scale_factor
-        self.mode = mode
+        self.method = mode
         self.align_corners = align_corners
         self.interp = jax.image.resize
 
-    def forward(self, x):
+    def __call__(self, x):
+        print(self.scale_factor)
         x = self.interp(
             x,
-            scale_factor=(x.shape[0]//self.scale_factor,
-                          x.shape[1]//self.scale_factor),
-            mode=self.mode,
-            align_corners=self.align_corners
+            shape=(x.shape[0]*self.scale_factor,
+                   x.shape[1]*self.scale_factor,
+                   x.shape[2]),
+            method=self.method,
         )
         return x
 
 
-class HeadDepth(nn.Module):
+class HeadDepth(hk.Module):
     def __init__(self, features):
+        super(HeadDepth, self).__init__()
         self.features = features
         self.kernel_size = 2
-        self.conv2d_1 = nn.Conv(self.features // 2,
-                                kernel_size=self.kernel_size,
-                                strides=1,
-                                padding=1)
-        self.conv2d_2 = nn.Conv(32,
-                                kernel_size=self.kernel_size,
-                                strides=1,
-                                padding=1)
-        self.conv2d_3 = nn.Conv(1,
-                                kernel_size=1,
-                                strides=1,
-                                padding=0)
+        self.conv2d_1 = hk.Conv2D(self.features // 2,
+                                  kernel_shape=self.kernel_size,
+                                  stride=1,
+                                  padding=[1, 1])
+        self.conv2d_2 = hk.Conv2D(32,
+                                  kernel_shape=self.kernel_size,
+                                  stride=1,
+                                  padding=[1, 1])
+        self.conv2d_3 = hk.Conv2D(1,
+                                  kernel_shape=1,
+                                  stride=1,
+                                  padding=[0, 0])
         self.interp = Interpolate(scale_factor=2)
-        self.relu = nn.relu
-        self.sigmoid = nn.sigmoid
+        self.relu = jax.nn.relu
+        self.sigmoid = jax.nn.sigmoid
 
-    def apply(self, x):
+    def __call__(self, x):
+        print("x.shape: {}".format(x.shape))
         x = self.conv2d_1(x)
-        x = self.interp(x)  # replace with transConv if necessary
+        x = self.interp(x)  # replace with transConv?
         x = self.conv2d_2(x)
         x = self.relu(x)
         x = self.conv2d_3(x)
@@ -54,28 +59,30 @@ class HeadDepth(nn.Module):
         return x
 
 
-class HeadSeg(nn.Module):
+class HeadSeg(hk.Module):
     def __init__(self, features, num_classes=2):
+        super(HeadSeg, self).__init__()
         self.features = features
         self.num_classes = num_classes
         self.kernel_size = 2
-        self.conv2d_1 = nn.Conv(self.features // 2,
-                                kernel_size=self.kernel_size,
-                                strides=1,
-                                padding=1)
-        self.conv2d_2 = nn.Conv(32,
-                                kernel_size=self.kernel_size,
-                                strides=1,
-                                padding=1)
-        self.conv2d_3 = nn.Conv(self.num_classes,
-                                kernel_size=1,
-                                strides=1,
-                                padding=0)
+        self.conv2d_1 = hk.Conv2D(self.features // 2,
+                                  kernel_shape=self.kernel_size,
+                                  stride=1,
+                                  padding=[1, 1])
+        self.conv2d_2 = hk.Conv2D(32,
+                                  kernel_shape=self.kernel_size,
+                                  stride=1,
+                                  padding=[1, 1])
+        self.conv2d_3 = hk.Conv2D(self.num_classes,
+                                  kernel_shape=1,
+                                  stride=1,
+                                  padding=[0, 0])
         self.interp = Interpolate(scale_factor=2)
-        self.relu = nn.relu
-        self.sigmoid = nn.sigmoid
+        self.relu = jax.nn.relu
+        self.sigmoid = jax.nn.sigmoid
 
-    def apply(self, x):
+    def __call__(self, x):
+        print("x.shape: {}".format(x.shape))
         x = self.conv2d_1(x)
         x = self.interp(x)  # replace with transConv if necessary
         x = self.conv2d_2(x)
@@ -100,21 +107,9 @@ class HeadSeg(nn.Module):
 #     return x
 
 
-class Params(nn.Module):
-    init = nn.initializers.normal(stddev=1.0)
-
-    @nn.compact
-    def __call__(self, bsz, patches_qty, latent_dims):
-        tokens_cls = self.param(
-            'tokens_cls', (bsz, 1, latent_dims[1]), self.init)
-        embed_pos = self.param(
-            'embed_pos', (1, patches_qty+1, latent_dims[1]), self.init)
-        return tokens_cls, embed_pos
-
-
-class TransformerCV(nn.Module):
+class TransformerCV(hk.Module):
     def __init__(self,
-                 x,
+                 image_size,
                  patch_size,
                  num_heads,
                  num_classes,
@@ -123,32 +118,27 @@ class TransformerCV(nn.Module):
                  mode,
                  latent_dims
                  ):
+        super(TransformerCV, self).__init__()
+        self.image_size = image_size
         self.patch_size = patch_size
         self.num_heads = num_heads
         self.num_classes = num_classes
         self.depth = depth
         self.latent_dims = latent_dims
         self.mode = mode
+        self.init = jax.nn.initializers.normal(stddev=1.0)
         self.resample_dim = resample_dim
         self.head_depth = HeadDepth(self.resample_dim)
         self.head_seg = HeadSeg(self.resample_dim, self.num_classes)
-        self.x = x
-        self.fc = nn.Dense(self.latent_dims[0])
-        bsz, hgt, wdt, cnl = self.x.shape
-        # TODO: why was this axes_swap done?
-        input = self.x.reshape(bsz, cnl, hgt, wdt)
-        patches_qty = (hgt*wdt)//(self.patch_size *
-                                  self.patch_size)
-        patches_dim = cnl*self.patch_size**2
-        patch = input.reshape(bsz, patches_qty, patches_dim)
-
-        # Convert patch to fixed len embedding
-        fc_vars = self.fc.init(jax.random.PRNGKey(0), patch)
-        self.embed = self.fc.apply(fc_vars, patch)
-        self.params = Params()
-        fc_vars = self.params.init(None)
-        self.tokens_cls, self.embed_pos = self.params.apply(fc_vars,
-                                                            bsz, patches_qty, latent_dims)
+        self.fc = hk.Linear(self.latent_dims[0])
+        self.bsz, self.hgt, self.wdt, self.cnl = self.image_size
+        self.patches_qty = (self.hgt*self.wdt)//(self.patch_size *
+                                                 self.patch_size)
+        self.patches_dim = self.cnl*self.patch_size**2
+        self.tokens_cls = hk.get_parameter(
+            'tokens_cls', shape=(self.bsz, 1, self.latent_dims[1]), init=jnp.zeros)
+        self.embed_pos = hk.get_parameter(
+            'embed_pos', shape=(1, self.patches_qty+1, self.latent_dims[1]), init=jnp.zeros)
 
     def __call__(self, x):
         """
@@ -169,20 +159,28 @@ class TransformerCV(nn.Module):
         # The embedding is incomplete, let's add the following:
         # - class tokens
         # - positional embeddings
-        x = jax.lax.concatenate([self.tokens_cls, self.embed], axis=1)
+        input = x.reshape(self.bsz, self.cnl, self.hgt, self.wdt)
+        self.patches_qty = (self.hgt*self.wdt)//(self.patch_size *
+                                                 self.patch_size)
+        self.patches_dim = self.cnl*self.patch_size**2
+        patch = input.reshape(self.bsz, self.patches_qty, self.patches_dim)
+
+        # Convert patch to fixed len embedding
+        embed = self.fc(patch)
+        x = jnp.concatenate([self.tokens_cls, embed], axis=1)
         x += self.embed_pos
         x = Transformer(self.depth, self.num_heads,
-                        self.latent_dims[1]).run(x)
+                        self.latent_dims[1])(x)
 
         if (self.mode == "seg"):
             x = self.head_seg(x)
         elif (self.mode == "depth"):
-            x = self.depth(x)
+            x = self.head_depth(x)
         elif (self.mode == "cls"):
             x = x[:, 0]
-            x = nn.Dense(x, self.latent_dims[2])
-            x = nn.gelu(x)
-            x = nn.Dense(x, self.num_classes)
+            x = hk.Linear(self.latent_dims[2])(x)
+            x = jax.nn.gelu(x)
+            x = hk.Linear(self.num_classes)(x)
         elif (self.mode == "segdepth"):
             seg = self.head_seg(x)
             depth = self.depth(x)
