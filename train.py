@@ -37,6 +37,7 @@ import os
 import pickle
 import time
 from typing import Any, Mapping
+from utils.utils import eval
 
 
 from absl import app
@@ -86,13 +87,13 @@ MODE = 'seg'  # ['text', 'cls', 'seg', 'depth']
 # TODO add to config file
 config = {
     "path": "/home/skhalid/Documents/datalake/",
-    "dataset": "CIFAR10",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
+    "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
     "batch_size": 16,
     "transform": None,
     "n_threads": 1,
     # "model_type": "segmentation",
     # "model_name": "deeplabv3_resnet50",
-    "epochs": 10,
+    "epochs": 100,
     "classes": 10
 }
 
@@ -159,7 +160,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
 
             def seg_fn(x, is_training):
                 # TODO: move to config
-                patch_size = 4
+                patch_size = 4  # important!!!
                 num_heads = 3
                 depth = 3
                 vit_mode = 'cls'
@@ -167,7 +168,6 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 resample_dim = 256  # TODO: from paper
                 model = TransformerCV(x.shape, patch_size, num_heads, num_classes,
                                       depth, resample_dim, vit_mode, latent_dims=latent_dims)
-                # init_params = model.init(jax.random.PRNGKey(0), x)
                 return model(x)
 
             transformer_seg = hk.transform(seg_fn)
@@ -444,23 +444,7 @@ def main(_):
                         #     'bold'], file=sys.stderr)
 
             # ============================ Evaluation logs ===========================
-            eval_trn = []
-            eval_tst = []
-            # for i, (x, y) in enumerate(ds_dict['dl_trn']):
-            #     train_acc = accuracy(state['params'],
-            #                          rng,
-            #                          x,
-            #                          jax.nn.one_hot(y, config["classes"]))
-            #     eval_trn.append(train_acc)
-            for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
-                x = preproc(x)
-                test_acc = accuracy(state['params'],
-                                    rng,
-                                    x,
-                                    jax.nn.one_hot(y, config["classes"]))
-                eval_tst.append(test_acc)
-            print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
-                  np.mean(eval_trn), np.mean(eval_tst)))
+            eval(rng, state, epoch, config, ds_dict, preproc, accuracy)
             # ============================ Evaluation logs ===========================
 
     elif (MODE == 'seg'):
@@ -510,23 +494,7 @@ def main(_):
                         #     'bold'], file=sys.stderr)
 
             # ============================ Evaluation logs ===========================
-            eval_trn = []
-            eval_tst = []
-            # for i, (x, y) in enumerate(ds_dict['dl_trn']):
-            #     train_acc = accuracy(state['params'],
-            #                          rng,
-            #                          x,
-            #                          jax.nn.one_hot(y, config["classes"]))
-            #     eval_trn.append(train_acc)
-            for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
-                x = preproc(x)
-                test_acc = accuracy(state['params'],
-                                    rng,
-                                    x,
-                                    jax.nn.one_hot(y, config["classes"]))
-                eval_tst.append(test_acc)
-            print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
-                  np.mean(eval_trn), np.mean(eval_tst)))
+            eval(rng, state, epoch, config, ds_dict, preproc, accuracy)
             # ============================ Evaluation logs ===========================
 
 

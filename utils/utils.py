@@ -1,6 +1,8 @@
+import jax
 import numpy as np
 import haiku as hk
 import pandas as pd
+from tqdm import tqdm
 from torch.utils import data
 from tabulate import tabulate
 from termcolor import cprint
@@ -47,6 +49,27 @@ def logger(data, order):
                 data[key]) == int else str(data[key])
         cprint(msg, 'green', attrs=['bold'], end='\n') if i == lng-1 else cprint(
             msg + ' --- ', 'green', attrs=['bold'], end=' ')
+
+
+def eval(rng, state, epoch, config, ds_dict, preproc, accuracy):
+    eval_trn = []
+    eval_tst = []
+    for i, (x, y) in enumerate(tqdm(ds_dict['dl_trn'])):
+        x = preproc(x)
+        train_acc = accuracy(state['params'],
+                             rng,
+                             x,
+                             jax.nn.one_hot(y, config["classes"]))
+        eval_trn.append(train_acc)
+    for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
+        x = preproc(x)
+        test_acc = accuracy(state['params'],
+                            rng,
+                            x,
+                            jax.nn.one_hot(y, config["classes"]))
+        eval_tst.append(test_acc)
+    print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
+          np.mean(eval_trn), np.mean(eval_tst)))
 
 
 def run(flag, mode, x, model, input_mask, max_iter=10, solver=0):
