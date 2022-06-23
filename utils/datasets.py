@@ -4,6 +4,8 @@ Create datasets and dataloader
 
 import torch
 import torchvision
+import torchvision.transforms as transforms
+
 import numpy as np
 import jax.numpy as jnp
 
@@ -37,6 +39,10 @@ class Datasets():
 
     def get_dataloader(self, mode):
         def collate_numpy(batch):
+            # print(batch)
+            # print("\nbatch.shape: {}\n".format(
+            #     [print(v[0].shape) for v in batch]))
+
             if isinstance(batch[0], np.ndarray):
                 return np.stack(batch)
             elif isinstance(batch[0], (tuple, list)):
@@ -53,8 +59,18 @@ class Datasets():
 
     def get_dataset(self, train):
         def make_jax_friendly(pic):
+            transform_imagenet_friendly = transforms.Compose(
+                [transforms.Resize(256),
+                 transforms.CenterCrop(224),
+                 transforms.ToTensor(),
+                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                     0.229, 0.224, 0.225])
+                 ])
+
+            if (self.dataset_name == "ImageNet"):
+                pic = transform_imagenet_friendly(pic)
+
             return np.array(pic, jnp.float32)
-            # return np.transpose(np.array(pic, jnp.float32), (1, 2, 3, 0))
 
         if not self.dataset_name:
             raise Exception("No dataset has been set!?!")

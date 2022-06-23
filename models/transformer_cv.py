@@ -136,9 +136,9 @@ class TransformerCV(hk.Module):
                                                  self.patch_size)
         self.patches_dim = self.cnl*self.patch_size**2
         self.tokens_cls = hk.get_parameter(
-            'tokens_cls', shape=(self.bsz, 1, self.latent_dims[1]), init=jnp.zeros)
+            'tokens_cls', shape=(self.bsz, 1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
         self.embed_pos = hk.get_parameter(
-            'embed_pos', shape=(1, self.patches_qty+1, self.latent_dims[1]), init=jnp.zeros)
+            'embed_pos', shape=(1, self.patches_qty+1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
 
     def __call__(self, x):
         """
@@ -164,7 +164,10 @@ class TransformerCV(hk.Module):
                                                  self.patch_size)
         self.patches_dim = self.cnl*self.patch_size**2
         patch = input.reshape(self.bsz, self.patches_qty, self.patches_dim)
-
+        # print("input.shape: {}".format(input.shape))
+        # print("patches_qty.shape: {}".format(input.shape))
+        # print("self.tokens_cls.shape: {}".format(self.tokens_cls.shape))
+        # print("self.embed_pos.shape: {}".format(self.embed_pos.shape))
         # Convert patch to fixed len embedding
         embed = self.fc(patch)
         x = jnp.concatenate([self.tokens_cls, embed], axis=1)

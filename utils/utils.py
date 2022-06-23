@@ -71,7 +71,11 @@ def run(flag, mode, x, model, input_mask, max_iter=10, solver=0):
                                  x, input_mask, is_training=True)
     elif (mode == 'cls'):
         print("Initializing weights...")
-        params, state = model.init(hk.next_rng_key(), x, is_training=True)
+        #params, state = model.init(hk.next_rng_key(), x, is_training=True)
+        rng = hk.next_rng_key()
+        params_and_state_fn, updater = hk.experimental.lift_with_state(
+            model.init)
+        params, state = params_and_state_fn(rng, x, is_training=True)
         if (flag):
             # Define a callable function for ease of access downstream
             def f(params, state, rng, x):
@@ -84,7 +88,10 @@ def run(flag, mode, x, model, input_mask, max_iter=10, solver=0):
             z_star, state = model.apply(params, state, None,
                                         x, is_training=True)
     elif (mode == 'seg'):
-        params, state = model.init(hk.next_rng_key(), x, is_training=True)
+        #params, state = model.init(hk.next_rng_key(), x, is_training=True)
+        rng = hk.next_rng_key()
+        params = hk.experimental.lift(
+            model.init)(rng, x, is_training=True)
         if (flag):
             # Define a callable function for ease of access downstream
             def f(params, state, rng, x):
@@ -94,7 +101,7 @@ def run(flag, mode, x, model, input_mask, max_iter=10, solver=0):
                 params, hk.next_rng_key(), x, f, max_iter, solver
             )
         else:
-            z_star, state = model.apply(params, state, None,
-                                        x, is_training=True)
+            z_star = model.apply(params, None,
+                                 x, is_training=True)
 
     return z_star

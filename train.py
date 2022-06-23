@@ -58,11 +58,6 @@ import utils.dataset as dataset
 from utils.utils import logger
 from utils.utils import run
 # from tabulate import tabulate
-# from jax.scipy.special import logsumexp
-# from jax import grad, jit, vmap, random
-
-# from torch.utils import data
-# from torchvision.datasets import MNIST
 
 flags.DEFINE_string('dataset_path', None,
                     'Single-file dataset location.')
@@ -86,13 +81,13 @@ LOG_EVERY = 100
 MAX_STEPS = 10000  # 10**6
 DEQ_FLAG = False
 LOG = False
-MODE = 'cls'  # ['text', 'cls', 'seg', 'depth']
+MODE = 'seg'  # ['text', 'cls', 'seg', 'depth']
 
 # TODO add to config file
 config = {
     "path": "/home/skhalid/Documents/datalake/",
-    "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
-    "batch_size": 128,
+    "dataset": "CIFAR10",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
+    "batch_size": 16,
     "transform": None,
     "n_threads": 1,
     # "model_type": "segmentation",
@@ -140,6 +135,8 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
 
             return hk.Linear(vocab_size)(z_star)
 
+            # TODO: Fix state_with_list updater - non-functional because
+            # updater needs to be passed downstream...
         elif (MODE == 'cls'):
             x = data['obs'].astype('float32')
             num_classes = config["classes"]
@@ -173,7 +170,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 # init_params = model.init(jax.random.PRNGKey(0), x)
                 return model(x)
 
-            transformer_seg = hk.transform_with_state(seg_fn)
+            transformer_seg = hk.transform(seg_fn)
             z_star = run(DEQ_FLAG, MODE, x,
                          transformer_seg, input_mask=False, max_iter=10, solver=0)
 
@@ -334,10 +331,11 @@ def preproc(x):
     x = np.expand_dims(x, axis=3) if len(x.shape) == 3 else x
     # TODO: fix
     x = np.repeat(x, 3, axis=3) if x.shape[3] == 1 else x
-    # x = np.array([cv2.resize(v, (32, 32))
-    #               for v in x]) if x.shape[1] != 32 else x
-    # x = np.transpose(x, (1, 2, 3, 0))
-    # x = np.transpose(x, (0, 3, 1, 2))
+    if (x.shape[1] == 3):
+        # shift c axis to the end
+        # [B, C, H, W] -> [B, H, W, C]
+        x = np.transpose(x, (0, 2, 3, 1))
+    # print("\nx.shape: {}\n".format(x.shape))
     return x
 
 
