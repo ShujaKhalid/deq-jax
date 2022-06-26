@@ -128,6 +128,7 @@ class TransformerCV(hk.Module):
         self.mode = mode
         self.init = jax.nn.initializers.normal(stddev=1.0)
         self.resample_dim = resample_dim
+        print(resample_dim)
         self.head_depth = HeadDepth(self.resample_dim)
         self.head_seg = HeadSeg(self.resample_dim, self.num_classes)
         self.fc = hk.Linear(self.latent_dims[0])

@@ -37,7 +37,7 @@ import argparse
 import functools
 from tqdm import tqdm
 from tkinter import X
-from utils.utils import eval
+from utils.utils import evaluate
 from typing import Any, Mapping
 
 
@@ -119,12 +119,12 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
 
             def seg_fn(x, is_training):
                 # TODO: move to config
-                patch_size = 4  # important!!!
-                num_heads = 3
-                depth = 3
-                vit_mode = 'cls'
-                latent_dims = [128, 128, 128]
-                resample_dim = 256  # TODO: from paper
+                patch_size = config["model_attrs"]["patch_size"]
+                num_heads = config["model_attrs"]["num_heads"]
+                depth = config["model_attrs"]["depth"]
+                resample_dim = config["model_attrs"]["resample_dim"]
+                vit_mode = config["model_attrs"]["vit_mode"]
+                latent_dims = eval(config["model_attrs"]["latent_dims"])
                 model = TransformerCV(x.shape, patch_size, num_heads, num_classes,
                                       depth, resample_dim, vit_mode, latent_dims=latent_dims)
                 return model(x)
@@ -294,7 +294,7 @@ def preproc(x):
 
 def main(config):
 
-    config["checkpoint_dir"] = config["logdir"] + int(time.time()) + "/"
+    config["checkpoint_dir"] = config["logdir"] + str(int(time.time())) + "/"
 
     # Create the dataset.
     if (config["mode"] == 'text'):
@@ -396,7 +396,7 @@ def main(config):
                         #     'bold'], file=sys.stderr)
 
             # ============================ Evaluation logs ===========================
-            eval(rng, state, epoch, config, ds_dict, preproc, accuracy)
+            evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy)
             # ============================ Evaluation logs ===========================
 
     elif (config["mode"] == 'seg'):
@@ -442,7 +442,7 @@ def main(config):
                         #     'bold'], file=sys.stderr)
 
             # ============================ Evaluation logs ===========================
-            eval(rng, state, epoch, config, ds_dict, preproc, accuracy)
+            evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy)
             # ============================ Evaluation logs ===========================
 
     return "Complete!"
@@ -479,11 +479,8 @@ if __name__ == '__main__':
         '--job_id', help='job id for the set of jobs in ./jobs')
     args = parser.parse_args()
     print(args)
-    configs = json.load(open(args.job_id, "r"))
+    config = json.load(open(args.job_id, "r"))
 
-    for config in configs.values():
-        log_dir = config["logdir"]
-        log_file = log_dir + "log.txt"
-        out = json.dumps(config, indent=4, sort_keys=True)
-        print(out)
-        main(config)
+    out = json.dumps(config, indent=4, sort_keys=True)
+    print(out)
+    main(config)

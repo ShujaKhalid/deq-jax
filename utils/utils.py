@@ -49,7 +49,7 @@ def logger(data, order):
             msg + '  --- ', 'green', attrs=['bold'], end=' ')
 
 
-def eval(rng, state, epoch, config, ds_dict, preproc, accuracy):
+def evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy):
     eval_trn = []
     eval_tst = []
     for i, (x, y) in enumerate(tqdm(ds_dict['dl_trn'])):
