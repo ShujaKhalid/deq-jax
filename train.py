@@ -28,14 +28,17 @@ $ python3 examples/transformer/train.py --dataset_path=/tmp/shakespeare.txt
 
 Note: Run with --alsologtostderr to see outputs.
 """
+
+import os
+import time
+import json
+import pickle
+import argparse
+import functools
 from tqdm import tqdm
 from tkinter import X
-import functools
-import os
-import pickle
-import time
-from typing import Any, Mapping
 from utils.utils import eval
+from typing import Any, Mapping
 
 
 from absl import app
@@ -57,43 +60,6 @@ from utils.utils import logger
 from utils.utils import run
 # from tabulate import tabulate
 
-flags.DEFINE_string('dataset_path', None,
-                    'Single-file dataset location.')
-
-flags.DEFINE_integer('batch_size', 32, 'Train batch size per core')
-flags.DEFINE_integer('sequence_length', 64, 'Sequence length to learn on')
-
-flags.DEFINE_integer('d_model', 128, 'model width')
-flags.DEFINE_integer('num_heads', 4, 'Number of attention heads')
-flags.DEFINE_integer('num_layers', 4, 'Number of transformer layers')
-flags.DEFINE_float('dropout_rate', 0.1, 'Dropout rate')
-
-flags.DEFINE_float('learning_rate', 3e-4, 'Max learning-rate')
-flags.DEFINE_float('grad_clip_value', 1, 'Gradient norm clip value')
-
-flags.DEFINE_string('checkpoint_dir', '/tmp/haiku-transformer',
-                    'Directory to store checkpoints.')
-
-FLAGS = flags.FLAGS
-LOG_EVERY = 100
-MAX_STEPS = 1000  # 10**6
-DEQ_FLAG = True
-LOG = False
-MODE = 'text'  # ['text', 'cls', 'seg', 'depth']
-
-# TODO add to config file
-config = {
-    "path": "/home/skhalid/Documents/datalake/",
-    "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
-    "batch_size": 32,
-    "transform": None,
-    "n_threads": 1,
-    # "model_type": "segmentation",
-    # "model_name": "deeplabv3_resnet50",
-    "epochs": 100,
-    "classes": 10
-}
-
 
 def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                      num_layers: int, dropout_rate: float):
@@ -103,7 +69,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                    is_training: bool = True) -> jnp.ndarray:
         """Forward pass."""
 
-        if (MODE == 'text'):
+        if (config["mode"] == 'text'):
             from models import transformer_lm
             tokens = data['obs']
             input_mask = jnp.greater(tokens, 0)
@@ -124,18 +90,14 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 num_heads=num_heads, num_layers=num_layers, dropout_rate=dropout_rate
             )
             transformer_pure = hk.transform(transformer)
-
-            # lift params
-            #h = jnp.zeros_like(x)
-
-            z_star = run(DEQ_FLAG, MODE, x,
-                         transformer_pure, input_mask, max_iter=10, solver=0)
+            z_star = run(bool(config["deq_flag"]), config["solver"], config["mode"], x,
+                         transformer_pure, input_mask, max_iter=10)
 
             return hk.Linear(vocab_size)(z_star)
 
             # TODO: Fix state_with_list updater - non-functional because
             # updater needs to be passed downstream...
-        elif (MODE == 'cls'):
+        elif (config["mode"] == 'cls'):
             x = data['obs'].astype('float32')
             num_classes = config["classes"]
 
@@ -145,12 +107,12 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 return model(x, is_training=is_training)
 
             transformer_cv = hk.transform_with_state(resnet_fn)
-            z_star = run(DEQ_FLAG, MODE, x,
-                         transformer_cv, input_mask=None, max_iter=10, solver=0)
+            z_star = run(bool(config["deq_flag"]), config["solver"], config["mode"], x,
+                         transformer_cv, input_mask=None, max_iter=10)
 
             return z_star
 
-        elif (MODE == 'seg'):
+        elif (config["mode"] == 'seg'):
             from models.transformer_cv import TransformerCV
             x = data['obs'].astype('float32')
             num_classes = config["classes"]
@@ -168,8 +130,8 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 return model(x)
 
             transformer_seg = hk.transform(seg_fn)
-            z_star = run(DEQ_FLAG, MODE, x,
-                         transformer_seg, input_mask=False, max_iter=10, solver=0)
+            z_star = run(bool(config["deq_flag"]), config["solver"], config["mode"], x,
+                         transformer_seg, input_mask=False, max_iter=10)
 
             return z_star
 
@@ -206,14 +168,8 @@ def vm_loss_fn(forward_fn,
     targets = jax.nn.one_hot(data['target'], classes)
     print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
     assert logits.shape == targets.shape
-
-    # mask = jnp.greater(data['obs'], 0)
-    # print("mask: {}".format(mask))
-    # loss = -jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1)
     loss = jnp.sum(-jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1))
-    print("loss: {}".format(loss))
-    # loss = jnp.sum(loss * mask) / jnp.sum(mask)
-    # print("loss: {}".format(loss))
+
     return loss
 
 
@@ -336,115 +292,68 @@ def preproc(x):
     return x
 
 
-def main(_):
-    FLAGS.alsologtostderr = True  # Always log visibly.
+def main(config):
+
+    config["checkpoint_dir"] = config["logdir"] + int(time.time()) + "/"
+
     # Create the dataset.
-    if (MODE == 'text'):
+    if (config["mode"] == 'text'):
         # TODO: move to datasets
         train_dataset = dataset.AsciiDataset(
-            config['path']+'shakespeare.txt', config["batch_size"], FLAGS.sequence_length)
+            config['dataset_path']+'shakespeare.txt', config["batch_size"], config["sequence_length"])
         vocab_size = train_dataset.vocab_size
         # Set up the model, loss, and updater.
-        forward_fn = build_forward_fn(vocab_size, FLAGS.d_model, FLAGS.num_heads,
-                                      FLAGS.num_layers, FLAGS.dropout_rate)
+        forward_fn = build_forward_fn(vocab_size, config["d_model"], config["num_heads"],
+                                      config["num_layers"], config["dropout_rate"])
         forward_fn = hk.transform(forward_fn)
         loss_fn = functools.partial(
             lm_loss_fn, forward_fn.apply, vocab_size)
-    elif (MODE == 'cls'):
-        forward_fn = build_forward_fn(config['classes'], FLAGS.d_model, FLAGS.num_heads,
-                                      FLAGS.num_layers, FLAGS.dropout_rate)
+    elif (config["mode"] == 'cls'):
+        forward_fn = build_forward_fn(config['classes'], config["d_model"], config["num_heads"],
+                                      config["num_layers"], config["dropout_rate"])
         forward_fn = hk.transform(forward_fn)
         loss_fn = functools.partial(
             vm_loss_fn, forward_fn.apply, config['classes'])
-    elif (MODE == 'seg'):
-        forward_fn = build_forward_fn(config['classes'], FLAGS.d_model, FLAGS.num_heads,
-                                      FLAGS.num_layers, FLAGS.dropout_rate)
+    elif (config["mode"] == 'seg'):
+        forward_fn = build_forward_fn(config['classes'], config["d_model"], config["num_heads"],
+                                      config["num_layers"], config["dropout_rate"])
         forward_fn = hk.transform(forward_fn)
         loss_fn = functools.partial(
             vm_loss_fn, forward_fn.apply, config['classes'])
 
     optimizer = optax.chain(
-        optax.clip_by_global_norm(FLAGS.grad_clip_value),
-        optax.adam(FLAGS.learning_rate, b1=0.9, b2=0.99))
+        optax.clip_by_global_norm(config["grad_clip_value"]),
+        optax.adam(config["learning_rate"], b1=0.9, b2=0.99))
 
     updater = Updater(forward_fn.init, loss_fn, optimizer)
-    updater = CheckpointingUpdater(updater, FLAGS.checkpoint_dir)
+    updater = CheckpointingUpdater(updater, config["checkpoint_dir"])
 
     # Initialize parameters.
-    logging.info('Initializing parameters...')
     rng = jax.random.PRNGKey(428)
 
-    logging.info('Starting train loop...')
     prev_time = time.time()
 
-    if (MODE == 'text'):
+    if (config["mode"] == 'text'):
         # TODO: Improve structure
         data = next(train_dataset)
         state = updater.init(rng, data)
-        for step in range(MAX_STEPS):
+        for step in range(config["max_steps"]):
             data = next(train_dataset)
             state, metrics = updater.update(state, data)
             # We use JAX runahead to mask data preprocessing and JAX dispatch overheads.
             # Using values from state/metrics too often will block the runahead and can
             # cause these overheads to become more prominent.
-            if step % LOG_EVERY == 0:
-                steps_per_sec = LOG_EVERY / (time.time() - prev_time)
+            if step % config["log_every"] == 0:
+                steps_per_sec = config["log_every"] / (time.time() - prev_time)
                 prev_time = time.time()
                 metrics.update({'steps_per_sec': steps_per_sec})
                 logger(metrics, order=[
-                    'step', 'loss', 'steps_per_sec'])
+                    'step',
+                    'loss',
+                    'steps_per_sec']
+                )
 
-    elif (MODE == 'cls'):
-
-        # Get the dataset in the required format
-        d = Datasets(config)
-        ds_dict = d.get_datasets()
-        print(ds_dict['ds_trn'])
-        print(ds_dict['ds_tst'])
-
-        # Train the model
-        for epoch in range(config["epochs"]):
-            for step, (x, y) in enumerate(ds_dict['dl_trn']):
-                x = preproc(x)
-                # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
-                data = {'obs': x, 'target': y}
-                if (step < MAX_STEPS):
-                    if (epoch == 0 and step == 0):
-                        # Initialize state
-                        state = updater.init(rng, data)
-
-                    def accuracy(params, rng, x, y):
-                        target_class = jnp.argmax(y, axis=1)
-                        predicted_class = jnp.argmax(
-                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
-                        return jnp.mean(predicted_class == target_class)
-
-                    state, metrics = updater.update(state, data)
-
-                    # Training logs
-                    if step % LOG_EVERY == 0:
-                        steps_per_sec = LOG_EVERY / \
-                            (time.time() - prev_time)
-                        prev_time = time.time()
-                        metrics.update({'steps_per_sec': steps_per_sec})
-                        # logging.info({k: float(v)
-                        #               for k, v in metrics.items()})
-                        # metrics = pd.DataFrame(
-                        #     metrics, index=[0], columns=metrics.keys())
-                        # print('===========================================')
-                        # print(tabulate(metrics, headers="keys", tablefmt="github"))
-
-                        logger(metrics, order=[
-                               'step', 'loss', 'steps_per_sec'])
-
-                        # cprint("Attention!", 'red', attrs=[
-                        #     'bold'], file=sys.stderr)
-
-            # ============================ Evaluation logs ===========================
-            eval(rng, state, epoch, config, ds_dict, preproc, accuracy)
-            # ============================ Evaluation logs ===========================
-
-    elif (MODE == 'seg'):
+    elif (config["mode"] == 'cls'):
 
         # Get the dataset in the required format
         d = Datasets(config)
@@ -458,7 +367,7 @@ def main(_):
                 x = preproc(x)
                 # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
                 data = {'obs': x, 'target': y}
-                if (step < MAX_STEPS):
+                if (step < config["max_steps"]):
                     if (epoch == 0 and step == 0):
                         # Initialize state
                         state = updater.init(rng, data)
@@ -472,20 +381,16 @@ def main(_):
                     state, metrics = updater.update(state, data)
 
                     # Training logs
-                    if step % LOG_EVERY == 0:
-                        steps_per_sec = LOG_EVERY / \
+                    if step % config["log_every"] == 0:
+                        steps_per_sec = config["log_every"] / \
                             (time.time() - prev_time)
                         prev_time = time.time()
                         metrics.update({'steps_per_sec': steps_per_sec})
-                        # logging.info({k: float(v)
-                        #               for k, v in metrics.items()})
-                        # metrics = pd.DataFrame(
-                        #     metrics, index=[0], columns=metrics.keys())
-                        # print('===========================================')
-                        # print(tabulate(metrics, headers="keys", tablefmt="github"))
-
                         logger(metrics, order=[
-                            'step', 'loss', 'steps_per_sec'])
+                               'step',
+                               'loss',
+                               'steps_per_sec']
+                               )
 
                         # cprint("Attention!", 'red', attrs=[
                         #     'bold'], file=sys.stderr)
@@ -493,8 +398,92 @@ def main(_):
             # ============================ Evaluation logs ===========================
             eval(rng, state, epoch, config, ds_dict, preproc, accuracy)
             # ============================ Evaluation logs ===========================
+
+    elif (config["mode"] == 'seg'):
+
+        # Get the dataset in the required format
+        d = Datasets(config)
+        ds_dict = d.get_datasets()
+        print(ds_dict['ds_trn'])
+        print(ds_dict['ds_tst'])
+
+        # Train the model
+        for epoch in range(config["epochs"]):
+            for step, (x, y) in enumerate(ds_dict['dl_trn']):
+                x = preproc(x)
+                # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
+                data = {'obs': x, 'target': y}
+                if (step < config["max_steps"]):
+                    if (epoch == 0 and step == 0):
+                        # Initialize state
+                        state = updater.init(rng, data)
+
+                    def accuracy(params, rng, x, y):
+                        target_class = jnp.argmax(y, axis=1)
+                        predicted_class = jnp.argmax(
+                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
+                        return jnp.mean(predicted_class == target_class)
+
+                    state, metrics = updater.update(state, data)
+
+                    # Training logs
+                    if step % config["log_every"] == 0:
+                        steps_per_sec = config["log_every"] / \
+                            (time.time() - prev_time)
+                        prev_time = time.time()
+                        metrics.update({'steps_per_sec': steps_per_sec})
+                        logger(metrics, order=[
+                            'step',
+                            'loss',
+                            'steps_per_sec'
+                        ])
+
+                        # cprint("Attention!", 'red', attrs=[
+                        #     'bold'], file=sys.stderr)
+
+            # ============================ Evaluation logs ===========================
+            eval(rng, state, epoch, config, ds_dict, preproc, accuracy)
+            # ============================ Evaluation logs ===========================
+
+    return "Complete!"
 
 
 if __name__ == '__main__':
-    flags.mark_flag_as_required('dataset_path')
-    app.run(main)
+    # TODO add to config file
+    # config = {
+    #     "dataset_path": "/home/skhalid/Documents/datalake/",
+    #     "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
+    #     "batch_size": 32,
+    #     "transform": None,
+    #     "n_threads": 1,
+    #     "log_every": 100,
+    #     "max_steps": 1000,
+    #     "deq_flag": False,
+    #     "solver": 0,  # {"0": "Broyden", "1": "Anderson", "2": "ETC"}
+    #     "log": False,
+    #     "mode": "seg",  # ["text", "cls", "seg"]
+    #     "epochs": 100,
+    #     "classes": 10,
+    #     "num_heads": 4,
+    #     "num_layers": 4,
+    #     "learning_rate": 3e-4,
+    #     "grad_clip_value": 1,
+    #     "dropout_rate": 0.1,
+    #     "d_model": 128,
+    #     "sequence_length": 64,
+    #     "checkpoint_dir": "/tmp/haiku-transformer",
+    #     "logdir": "./logs/"
+
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument(
+        '--job_id', help='job id for the set of jobs in ./jobs')
+    args = parser.parse_args()
+    print(args)
+    configs = json.load(open(args.job_id, "r"))
+
+    for config in configs.values():
+        log_dir = config["logdir"]
+        log_file = log_dir + "log.txt"
+        out = json.dumps(config, indent=4, sort_keys=True)
+        print(out)
+        main(config)

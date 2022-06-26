@@ -45,10 +45,8 @@ def logger(data, order):
     lng = len(order)
     for i, key in enumerate(order):
         msg = str(key) + ': ' + str(data[key]).zfill(6)
-        # if type(
-        #    data[key]) == str else str(data[key])
         cprint(msg, 'green', attrs=['bold'], end='\n') if i == lng-1 else cprint(
-            msg + ' --- ', 'green', attrs=['bold'], end=' ')
+            msg + '  --- ', 'green', attrs=['bold'], end=' ')
 
 
 def eval(rng, state, epoch, config, ds_dict, preproc, accuracy):
@@ -72,7 +70,7 @@ def eval(rng, state, epoch, config, ds_dict, preproc, accuracy):
           np.mean(eval_trn), np.mean(eval_tst)))
 
 
-def run(flag, mode, x, model, input_mask, max_iter=10, solver=0):
+def run(flag, solver, mode, x, model, input_mask, max_iter=10):
     '''
     gen_stats:
     max_iter = 10
@@ -86,15 +84,24 @@ def run(flag, mode, x, model, input_mask, max_iter=10, solver=0):
         if (flag):
             def f(params, rng, x, input_mask):
                 return model.apply(params, rng, x, input_mask, is_training=True)
-
             z_star = deq(
-                params, hk.next_rng_key(), x, f, max_iter, solver, input_mask)
+                params,
+                solver,
+                0 if mode == "text" else 1,
+                hk.next_rng_key(),
+                x,
+                f,
+                max_iter,
+                input_mask
+            )
         else:
-            z_star = model.apply(params, rng,
-                                 x, input_mask, is_training=True)
+            z_star = model.apply(params,
+                                 rng,
+                                 x,
+                                 input_mask,
+                                 is_training=True)
     elif (mode == 'cls'):
-        print("Initializing weights...")
-        #params, state = model.init(hk.next_rng_key(), x, is_training=True)
+        # params, state = model.init(hk.next_rng_key(), x, is_training=True)
         rng = hk.next_rng_key()
         params_and_state_fn, updater = hk.experimental.lift_with_state(
             model.init)
@@ -105,13 +112,22 @@ def run(flag, mode, x, model, input_mask, max_iter=10, solver=0):
                 return model.apply(params, state, rng, x)
 
             z_star = deq(
-                params, hk.next_rng_key(), x, f, max_iter, solver
+                params,
+                solver,
+                0 if mode == "text" else 1,
+                hk.next_rng_key(),
+                x,
+                f,
+                max_iter
             )
         else:
-            z_star, state = model.apply(params, state, None,
-                                        x, is_training=True)
+            z_star, state = model.apply(params,
+                                        state,
+                                        None,
+                                        x,
+                                        is_training=True)
     elif (mode == 'seg'):
-        #params, state = model.init(hk.next_rng_key(), x, is_training=True)
+        # params, state = model.init(hk.next_rng_key(), x, is_training=True)
         rng = hk.next_rng_key()
         params = hk.experimental.lift(
             model.init)(rng, x, is_training=True)
@@ -121,10 +137,48 @@ def run(flag, mode, x, model, input_mask, max_iter=10, solver=0):
                 return model.apply(params, state, rng, x)
 
             z_star = deq(
-                params, hk.next_rng_key(), x, f, max_iter, solver
+                params,
+                solver,
+                0 if mode == "text" else 1,
+                hk.next_rng_key(),
+                x,
+                f,
+                max_iter
             )
         else:
-            z_star = model.apply(params, None,
-                                 x, is_training=True)
+            z_star = model.apply(params,
+                                 None,
+                                 x,
+                                 is_training=True)
 
     return z_star
+
+
+def qnm(fun, x, max_iter, eps, solver, mode, *args):
+    # solvers
+    # from solvers.broyden_nlp import broyden
+    # from solvers.broyden_cv import broyden
+    # from tensorflow_probability.substrates.jax.math import secant_root as secant
+
+    # Choose solver type (cv vc. nlp) # unify later
+    # 0: "text"
+    if (solver == 0 and mode == 0):
+        from solvers.broyden_nlp import broyden
+        solver = broyden
+    elif (solver == 0 and mode == 1):
+        from solvers.broyden_cv import broyden
+        solver = broyden
+    elif (solver == 1 and mode == 0):
+        from solvers.anderson import AndersonAcceleration as anderson
+        solver = anderson
+    elif (solver == 1 and mode == 1):
+        from solvers.anderson import AndersonAcceleration as anderson
+        solver = anderson
+    else:
+        raise Exception('Invalid solver/mode combination')
+
+    result_info = jax.lax.stop_gradient(
+        solver(fun, x, max_iter, eps, *args)
+    )['result']
+
+    return result_info

@@ -1,0 +1,26 @@
+{
+    "0": {
+        "dataset_path": "/home/skhalid/Documents/datalake/",
+        "dataset": "MNIST",
+        "batch_size": 32,
+        "transform": "None",
+        "n_threads": 1,
+        "log_every": 100,
+        "max_steps": 1000,
+        "deq_flag": "False",
+        "solver": 0,
+        "log": "False",
+        "mode": "seg",
+        "epochs": 100,
+        "classes": 10,
+        "num_heads": 4,
+        "num_layers": 4,
+        "learning_rate": 3e-4,
+        "grad_clip_value": 1,
+        "dropout_rate": 0.1,
+        "d_model": 128,
+        "sequence_length": 64,
+        "checkpoint_dir": "/tmp/haiku-transformer",
+        "logfile": "./logs/"
+    }
+}

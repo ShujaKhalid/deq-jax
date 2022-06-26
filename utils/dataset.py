@@ -62,8 +62,6 @@ class AsciiDataset:
             corpus = corpus[:-ragged]
         corpus = corpus.reshape([-1, crop_len])
 
-        print(corpus)
-
         if num_batches < 10:
             raise ValueError(f'Only {num_batches} batches; consider a shorter '
                              'sequence or a smaller batch.')

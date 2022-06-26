@@ -113,7 +113,7 @@ def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> d
     # For memory constraints J = U * V^T
     # So J = U_0 * V^T_0 + U_1 * V^T_1 + ..
     # For fast calculation of inv_jacobian (approximately) we store as Us and VTs
-    print("Input dimensions: {}".format(x0.shape))
+    # print("Input dimensions: {}".format(x0.shape))
     if (len(x0.shape) == 3):
         # text
         bsz, total_hsize, seq_len = x0.shape
@@ -194,7 +194,6 @@ def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> d
 
     # state = body_fun(state)
     state = jax.lax.while_loop(cond_fun, body_fun, state)
-    print(state)
     # state = jax.lax.fori_loop(0, max_iter, body_fun, state)
     # state = hk.fori_loop(0, max_iter, body_fun, state)
     return {"result": state.min_x,

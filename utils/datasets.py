@@ -17,7 +17,7 @@ CUSTOM_DATASETS = ['shakespeare_mini']
 class Datasets():
     def __init__(self, config: dict, transform=None):
         self.config = config
-        self.dataset_path = self.config['path']
+        self.dataset_path = self.config['dataset_path']
         self.dataset_name = self.config['dataset']
         self.transform = config['transform']
         self.dataset_train = None
@@ -54,6 +54,7 @@ class Datasets():
         return torch.utils.data.DataLoader(eval("self.dataset_"+mode),
                                            batch_size=self.config["batch_size"],
                                            shuffle=True,
+                                           drop_last=True,
                                            num_workers=self.config["n_threads"],
                                            collate_fn=collate_numpy)
 
