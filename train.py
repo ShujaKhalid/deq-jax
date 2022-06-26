@@ -28,8 +28,6 @@ $ python3 examples/transformer/train.py --dataset_path=/tmp/shakespeare.txt
 
 Note: Run with --alsologtostderr to see outputs.
 """
-import cv2
-import sys
 from tqdm import tqdm
 from tkinter import X
 import functools
@@ -53,7 +51,6 @@ import jax
 import optax
 import haiku as hk
 import numpy as np
-import torchvision
 import jax.numpy as jnp
 import utils.dataset as dataset
 from utils.utils import logger
@@ -79,16 +76,16 @@ flags.DEFINE_string('checkpoint_dir', '/tmp/haiku-transformer',
 
 FLAGS = flags.FLAGS
 LOG_EVERY = 100
-MAX_STEPS = 10000  # 10**6
-DEQ_FLAG = False
+MAX_STEPS = 1000  # 10**6
+DEQ_FLAG = True
 LOG = False
-MODE = 'seg'  # ['text', 'cls', 'seg', 'depth']
+MODE = 'text'  # ['text', 'cls', 'seg', 'depth']
 
 # TODO add to config file
 config = {
     "path": "/home/skhalid/Documents/datalake/",
     "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
-    "batch_size": 16,
+    "batch_size": 32,
     "transform": None,
     "n_threads": 1,
     # "model_type": "segmentation",

@@ -19,7 +19,7 @@ def deq(params: dict, rng, x: jnp.ndarray, f: Callable, max_iter: int, solver: i
     # TODO
     # Why are we re-calculating this?
     # Isn't it supposed to be the same?
-    #z_star = f(params, rng, z_star, *args)
-    #z_star = rootfind_grad(g, max_iter, solver, params, rng, z_star, *args)
+    z_star = f(params, rng, z_star, *args)
+    z_star = rootfind_grad(g, max_iter, solver, params, rng, z_star, *args)
 
     return z_star

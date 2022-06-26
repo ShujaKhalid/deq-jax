@@ -7,7 +7,7 @@ from functools import partial
 from typing import Callable
 
 # solvers
-from solvers.broyden import broyden
+from solvers.broyden_nlp import broyden
 from solvers.anderson import AndersonAcceleration as anderson
 #from tensorflow_probability.substrates.jax.math import secant_root as secant
 from solvers.secant import find_root_secant as secant

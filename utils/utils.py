@@ -44,9 +44,9 @@ def logger(data, order):
     # custom logging
     lng = len(order)
     for i, key in enumerate(order):
-        msg = key + ': ' + \
-            str(data[key]).zfill(6) if type(
-                data[key]) == int else str(data[key])
+        msg = str(key) + ': ' + str(data[key]).zfill(6)
+        # if type(
+        #    data[key]) == str else str(data[key])
         cprint(msg, 'green', attrs=['bold'], end='\n') if i == lng-1 else cprint(
             msg + ' --- ', 'green', attrs=['bold'], end=' ')
 

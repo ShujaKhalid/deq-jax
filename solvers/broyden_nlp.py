@@ -194,6 +194,7 @@ def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> d
 
     # state = body_fun(state)
     state = jax.lax.while_loop(cond_fun, body_fun, state)
+    print(state)
     # state = jax.lax.fori_loop(0, max_iter, body_fun, state)
     # state = hk.fori_loop(0, max_iter, body_fun, state)
     return {"result": state.min_x,
