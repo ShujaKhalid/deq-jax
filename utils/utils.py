@@ -52,20 +52,23 @@ def logger(data, order):
 def evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy):
     eval_trn = []
     eval_tst = []
-    for i, (x, y) in enumerate(tqdm(ds_dict['dl_trn'])):
-        x = preproc(x)
-        train_acc = accuracy(state['params'],
-                             rng,
-                             x,
-                             jax.nn.one_hot(y, config["classes"]))
-        eval_trn.append(train_acc)
-    for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
-        x = preproc(x)
-        test_acc = accuracy(state['params'],
-                            rng,
-                            x,
-                            jax.nn.one_hot(y, config["classes"]))
-        eval_tst.append(test_acc)
+    log_policy = eval(config["log_policy"])
+    if ("train" in log_policy):
+        for i, (x, y) in enumerate(tqdm(ds_dict['dl_trn'])):
+            x = preproc(x, config)
+            train_acc = accuracy(state['params'],
+                                 rng,
+                                 x,
+                                 jax.nn.one_hot(y, config["classes"]))
+            eval_trn.append(train_acc)
+    if ("valid" in log_policy):
+        for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
+            x = preproc(x, config)
+            test_acc = accuracy(state['params'],
+                                rng,
+                                x,
+                                jax.nn.one_hot(y, config["classes"]))
+            eval_tst.append(test_acc)
     print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
           np.mean(eval_trn), np.mean(eval_tst)))
 
@@ -126,6 +129,30 @@ def run(flag, solver, mode, x, model, input_mask, max_iter=10):
                                         None,
                                         x,
                                         is_training=True)
+    elif (mode == 'cls_trans'):
+        # params, state = model.init(hk.next_rng_key(), x, is_training=True)
+        rng = hk.next_rng_key()
+        params = hk.experimental.lift(
+            model.init)(rng, x, is_training=True)
+        if (flag):
+            # Define a callable function for ease of access downstream
+            def f(params, state, rng, x):
+                return model.apply(params, state, rng, x)
+
+            z_star = deq(
+                params,
+                solver,
+                0 if mode == "text" else 1,
+                hk.next_rng_key(),
+                x,
+                f,
+                max_iter
+            )
+        else:
+            z_star = model.apply(params,
+                                 None,
+                                 x,
+                                 is_training=True)
     elif (mode == 'seg'):
         # params, state = model.init(hk.next_rng_key(), x, is_training=True)
         rng = hk.next_rng_key()
@@ -163,22 +190,18 @@ def qnm(fun, x, max_iter, eps, solver, mode, *args):
     # Choose solver type (cv vc. nlp) # unify later
     # 0: "text"
     if (solver == 0 and mode == 0):
-        from solvers.broyden_nlp import broyden
-        solver = broyden
+        from solvers.broyden_nlp import broyden as find_root
     elif (solver == 0 and mode == 1):
-        from solvers.broyden_cv import broyden
-        solver = broyden
+        from solvers.broyden_cv import broyden as find_root
     elif (solver == 1 and mode == 0):
-        from solvers.anderson import AndersonAcceleration as anderson
-        solver = anderson
+        from solvers.anderson import AndersonAcceleration as find_root
     elif (solver == 1 and mode == 1):
-        from solvers.anderson import AndersonAcceleration as anderson
-        solver = anderson
+        from solvers.anderson import AndersonAcceleration as find_root
     else:
         raise Exception('Invalid solver/mode combination')
 
     result_info = jax.lax.stop_gradient(
-        solver(fun, x, max_iter, eps, *args)
+        find_root(fun, x, max_iter, eps, *args)
     )['result']
 
     return result_info

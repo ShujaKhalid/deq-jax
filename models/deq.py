@@ -8,7 +8,8 @@ from .rootfind import rootfind, rootfind_grad
 def deq(params: dict, solver: int, mode: int, rng, x: jnp.ndarray, f: Callable, max_iter: int, *args) -> jnp.ndarray:
     # Define the equilibrium point
     # g(z)=f(z)-z
-    def g(params, rng, x, *args): return f(params, rng, x, *args) - x
+    def g(params, rng, x, *args):
+        return f(params, rng, x, *args) - x
 
     # Analytically find the root using one
     # of the following solvers:
@@ -27,11 +28,7 @@ def deq(params: dict, solver: int, mode: int, rng, x: jnp.ndarray, f: Callable, 
     # TODO
     # Why are we re-calculating this?
     # Isn't it supposed to be the same?
-    z_star = f(params,
-               rng,
-               z_star,
-               *args
-               )
+    z_star = f(params, rng, z_star, None)
     z_star = rootfind_grad(g,
                            max_iter,
                            solver,
@@ -39,7 +36,7 @@ def deq(params: dict, solver: int, mode: int, rng, x: jnp.ndarray, f: Callable, 
                            params,
                            rng,
                            z_star,
-                           *args
+                           None
                            )
 
     return z_star

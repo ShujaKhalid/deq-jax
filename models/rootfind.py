@@ -55,7 +55,7 @@ def rootfind_bwd(fun, max_iter, solver, mode, res, grad):
     (params, rng, z_star, *args) = res
     (_, vjp_fun) = jax.vjp(fun, params, rng, z_star, *args)
 
-    def h_fun(x):
+    def h_fun(x, args=None):
         #  J^(-1)_{g} x^T + (dl/dz_star)^T
         (JTp, JTr, JTx, *_) = vjp_fun(x)
         return JTx + grad

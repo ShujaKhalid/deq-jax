@@ -94,7 +94,7 @@ def line_search(g: Callable, direction: jnp.ndarray, x0: jnp.ndarray, g0: jnp.nd
     """
     s = 1.0
     x_est = x0 + s * direction
-    g0_new = g(x_est, *args)
+    g0_new = g(x_est, None)
     return x_est - x0, g0_new - g0
 
 
@@ -113,20 +113,19 @@ def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> d
     # For memory constraints J = U * V^T
     # So J = U_0 * V^T_0 + U_1 * V^T_1 + ..
     # For fast calculation of inv_jacobian (approximately) we store as Us and VTs
-    print("Input dimensions: {}".format(x0.shape))
-    # cv
-    h, w, c, bsz = x0.shape
-    Us = jnp.zeros((bsz, h * w, c, max_iter))
-    VTs = jnp.zeros((bsz, max_iter, h * w, c))
+    bsz, patches, feats = x0.shape
+    Us = jnp.zeros((bsz, patches, feats, max_iter))
+    VTs = jnp.zeros((bsz, max_iter, patches, feats))
 
-    gx = g(x0, *args)  # (bsz, 2d, L')
+    gx = g(x0, None)  # (bsz, 2d, L')
     init_objective = jnp.linalg.norm(gx)
 
     # To be used in protective breaks
+    # (To avoid divergence)
     trace = jnp.zeros(max_iter)
     #trace = jax.ops.index_update(trace, jax.ops.index[0], init_objective)
     trace = trace.at[0].set(init_objective)
-    protect_thres = 1e5 * h * w
+    protect_thres = 1e5 * patches  # TODO: arbitrarily set
 
     state = _BroydenResults(
         converged=False,

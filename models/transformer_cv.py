@@ -109,7 +109,7 @@ class HeadSeg(hk.Module):
 
 class TransformerCV(hk.Module):
     def __init__(self,
-                 image_size,
+                 x_size,
                  patch_size,
                  num_heads,
                  num_classes,
@@ -119,7 +119,7 @@ class TransformerCV(hk.Module):
                  latent_dims
                  ):
         super(TransformerCV, self).__init__()
-        self.image_size = image_size
+        self.x_size = x_size
         self.patch_size = patch_size
         self.num_heads = num_heads
         self.num_classes = num_classes
@@ -128,20 +128,17 @@ class TransformerCV(hk.Module):
         self.mode = mode
         self.init = jax.nn.initializers.normal(stddev=1.0)
         self.resample_dim = resample_dim
-        print(resample_dim)
         self.head_depth = HeadDepth(self.resample_dim)
         self.head_seg = HeadSeg(self.resample_dim, self.num_classes)
         self.fc = hk.Linear(self.latent_dims[0])
-        self.bsz, self.hgt, self.wdt, self.cnl = self.image_size
-        self.patches_qty = (self.hgt*self.wdt)//(self.patch_size *
-                                                 self.patch_size)
+        self.batch_size, self.patches_qty, self.cnl = self.x_size
         self.patches_dim = self.cnl*self.patch_size**2
         self.tokens_cls = hk.get_parameter(
-            'tokens_cls', shape=(self.bsz, 1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
+            'tokens_cls', shape=(self.batch_size, 1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
         self.embed_pos = hk.get_parameter(
             'embed_pos', shape=(1, self.patches_qty+1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
 
-    def __call__(self, x):
+    def __call__(self, x, *args):
         """
         Apply the vision transformer to the given input (img tensor)
 
@@ -160,17 +157,17 @@ class TransformerCV(hk.Module):
         # The embedding is incomplete, let's add the following:
         # - class tokens
         # - positional embeddings
-        input = x.reshape(self.bsz, self.cnl, self.hgt, self.wdt)
-        self.patches_qty = (self.hgt*self.wdt)//(self.patch_size *
-                                                 self.patch_size)
-        self.patches_dim = self.cnl*self.patch_size**2
-        patch = input.reshape(self.bsz, self.patches_qty, self.patches_dim)
-        # print("input.shape: {}".format(input.shape))
-        # print("patches_qty.shape: {}".format(input.shape))
-        # print("self.tokens_cls.shape: {}".format(self.tokens_cls.shape))
-        # print("self.embed_pos.shape: {}".format(self.embed_pos.shape))
+        # input = x.reshape(self.bsz, self.cnl, self.hgt, self.wdt)
+        # self.patches_qty = (self.hgt*self.wdt)//(self.patch_size *
+        #                                          self.patch_size)
+        # self.patches_dim = self.cnl*self.patch_size**2
+        # patch = input.reshape(self.bsz, self.patches_qty, self.patches_dim)
+        # # print("input.shape: {}".format(input.shape))
+        # # print("patches_qty.shape: {}".format(input.shape))
+        # # print("self.tokens_cls.shape: {}".format(self.tokens_cls.shape))
+        # # print("self.embed_pos.shape: {}".format(self.embed_pos.shape))
         # Convert patch to fixed len embedding
-        embed = self.fc(patch)
+        embed = self.fc(x)
         x = jnp.concatenate([self.tokens_cls, embed], axis=1)
         x += self.embed_pos
         x = Transformer(self.depth, self.num_heads,
@@ -181,10 +178,15 @@ class TransformerCV(hk.Module):
         elif (self.mode == "depth"):
             x = self.head_depth(x)
         elif (self.mode == "cls"):
-            x = x[:, 0]
-            x = hk.Linear(self.latent_dims[2])(x)
-            x = jax.nn.gelu(x)
-            x = hk.Linear(self.num_classes)(x)
+            # print("(Before FC) x.shape: {}".format(x.shape))
+            x = x[:, :49, :48]  # TODO: FIX...
+            # print("(After FC before 2nd FC) x.shape: {}".format(x.shape))
+            # x = x[:, 0]  # TODO: Why exactly do we discard everything else?
+            # print("(Before FC after x[:, 0]) x.shape: {}".format(x.shape))
+            # x = hk.Linear(self.latent_dims[2])(x)
+            # print("(After FC before 2nd FC) x.shape: {}".format(x.shape))
+            # x = jax.nn.gelu(x)
+            # x = hk.Linear(self.num_classes)(x)
         elif (self.mode == "segdepth"):
             seg = self.head_seg(x)
             depth = self.depth(x)

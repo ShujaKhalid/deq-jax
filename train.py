@@ -90,7 +90,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 num_heads=num_heads, num_layers=num_layers, dropout_rate=dropout_rate
             )
             transformer_pure = hk.transform(transformer)
-            z_star = run(bool(config["deq_flag"]), config["solver"], config["mode"], x,
+            z_star = run(config["deq_flag"] == "True", config["solver"], config["mode"], x,
                          transformer_pure, input_mask, max_iter=10)
 
             return hk.Linear(vocab_size)(z_star)
@@ -107,11 +107,40 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 return model(x, is_training=is_training)
 
             transformer_cv = hk.transform_with_state(resnet_fn)
-            z_star = run(bool(config["deq_flag"]), config["solver"], config["mode"], x,
+            z_star = run(config["deq_flag"] == "True", config["solver"], config["mode"], x,
                          transformer_cv, input_mask=None, max_iter=10)
+            return z_star
+        elif (config["mode"] == 'cls_trans'):
+            from models.transformer_cv import TransformerCV
+            x = data['obs'].astype('float32')
+            num_classes = config["classes"]
+            latent_dims = eval(config["model_attrs"]["latent_dims"])
 
+            def seg_fn(x, is_training):
+                # TODO: move to config
+                patch_size = config["model_attrs"]["patch_size"]
+                num_heads = config["model_attrs"]["num_heads"]
+                depth = config["model_attrs"]["depth"]
+                resample_dim = config["model_attrs"]["resample_dim"]
+                vit_mode = config["model_attrs"]["vit_mode"]
+                latent_dims = eval(config["model_attrs"]["latent_dims"])
+                model = TransformerCV(x.shape, patch_size, num_heads, num_classes,
+                                      depth, resample_dim, vit_mode, latent_dims=latent_dims)
+                return model(x)
+
+            transformer_seg = hk.transform(seg_fn)
+            z_star = run(config["deq_flag"] == "True", config["solver"], config["mode"], x,
+                         transformer_seg, input_mask=False, max_iter=10)
+
+            # Additional steps for downstream classification
+            # TODO: Why exactly do we discard everything else?
+            z_star = z_star[:, 0]
+            z_star = hk.Linear(latent_dims[2])(z_star)
+            z_star = jax.nn.gelu(z_star)
+            z_star = hk.Linear(num_classes)(z_star)
             return z_star
 
+        # TODO: Add fusion modeule or the like...
         elif (config["mode"] == 'seg'):
             from models.transformer_cv import TransformerCV
             x = data['obs'].astype('float32')
@@ -130,7 +159,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 return model(x)
 
             transformer_seg = hk.transform(seg_fn)
-            z_star = run(bool(config["deq_flag"]), config["solver"], config["mode"], x,
+            z_star = run(config["deq_flag"] == "True", config["solver"], config["mode"], x,
                          transformer_seg, input_mask=False, max_iter=10)
 
             return z_star
@@ -280,7 +309,20 @@ class CheckpointingUpdater:
         return state, out
 
 
-def preproc(x):
+def patchify(patch_size, x):
+    bsz, hgt, wdt, cnl = x.shape
+    input = x.reshape(bsz, cnl, hgt, wdt)
+    patches_qty = (hgt*wdt)//(patch_size * patch_size)
+    patches_dim = cnl*patch_size**2
+    patches = input.reshape(bsz, patches_qty, patches_dim)
+    # print("x.shape: {}".format(x.shape))
+    # print("patches.shape: {}".format(patches.shape))
+    # print("self.tokens_cls.shape: {}".format(self.tokens_cls.shape))
+    # print("self.embed_pos.shape: {}".format(self.embed_pos.shape))
+    return patches
+
+
+def preproc(x, config):
     x = np.expand_dims(x, axis=3) if len(x.shape) == 3 else x
     # TODO: fix
     x = np.repeat(x, 3, axis=3) if x.shape[3] == 1 else x
@@ -288,8 +330,11 @@ def preproc(x):
         # shift c axis to the end
         # [B, C, H, W] -> [B, H, W, C]
         x = np.transpose(x, (0, 2, 3, 1))
-    # print("\nx.shape: {}\n".format(x.shape))
-    return x
+
+    # Change the format of the data
+    # from img -> img_patch
+    patch_size = config["model_attrs"]["patch_size"]
+    return patchify(patch_size, x)
 
 
 def main(config):
@@ -309,6 +354,12 @@ def main(config):
         loss_fn = functools.partial(
             lm_loss_fn, forward_fn.apply, vocab_size)
     elif (config["mode"] == 'cls'):
+        forward_fn = build_forward_fn(config['classes'], config["d_model"], config["num_heads"],
+                                      config["num_layers"], config["dropout_rate"])
+        forward_fn = hk.transform(forward_fn)
+        loss_fn = functools.partial(
+            vm_loss_fn, forward_fn.apply, config['classes'])
+    elif (config["mode"] == 'cls_trans'):
         forward_fn = build_forward_fn(config['classes'], config["d_model"], config["num_heads"],
                                       config["num_layers"], config["dropout_rate"])
         forward_fn = hk.transform(forward_fn)
@@ -364,7 +415,7 @@ def main(config):
         # Train the model
         for epoch in range(config["epochs"]):
             for step, (x, y) in enumerate(ds_dict['dl_trn']):
-                x = preproc(x)
+                x = preproc(x, config)
                 # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
                 data = {'obs': x, 'target': y}
                 if (step < config["max_steps"]):
@@ -375,7 +426,7 @@ def main(config):
                     def accuracy(params, rng, x, y):
                         target_class = jnp.argmax(y, axis=1)
                         predicted_class = jnp.argmax(
-                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
+                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=True), axis=1)
                         return jnp.mean(predicted_class == target_class)
 
                     state, metrics = updater.update(state, data)
@@ -392,14 +443,11 @@ def main(config):
                                'steps_per_sec']
                                )
 
-                        # cprint("Attention!", 'red', attrs=[
-                        #     'bold'], file=sys.stderr)
-
             # ============================ Evaluation logs ===========================
             evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy)
             # ============================ Evaluation logs ===========================
 
-    elif (config["mode"] == 'seg'):
+    elif (config["mode"] == 'cls_trans'):
 
         # Get the dataset in the required format
         d = Datasets(config)
@@ -410,7 +458,7 @@ def main(config):
         # Train the model
         for epoch in range(config["epochs"]):
             for step, (x, y) in enumerate(ds_dict['dl_trn']):
-                x = preproc(x)
+                x = preproc(x, config)
                 # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
                 data = {'obs': x, 'target': y}
                 if (step < config["max_steps"]):
@@ -421,7 +469,7 @@ def main(config):
                     def accuracy(params, rng, x, y):
                         target_class = jnp.argmax(y, axis=1)
                         predicted_class = jnp.argmax(
-                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
+                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=True), axis=1)
                         return jnp.mean(predicted_class == target_class)
 
                     state, metrics = updater.update(state, data)
@@ -438,8 +486,48 @@ def main(config):
                             'steps_per_sec'
                         ])
 
-                        # cprint("Attention!", 'red', attrs=[
-                        #     'bold'], file=sys.stderr)
+            # ============================ Evaluation logs ===========================
+            evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy)
+            # ============================ Evaluation logs ===========================
+
+    elif (config["mode"] == 'seg'):
+
+        # Get the dataset in the required format
+        d = Datasets(config)
+        ds_dict = d.get_datasets()
+        print(ds_dict['ds_trn'])
+        print(ds_dict['ds_tst'])
+
+        # Train the model
+        for epoch in range(config["epochs"]):
+            for step, (x, y) in enumerate(ds_dict['dl_trn']):
+                x = preproc(x, config)
+                # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
+                data = {'obs': x, 'target': y}
+                if (step < config["max_steps"]):
+                    if (epoch == 0 and step == 0):
+                        # Initialize state
+                        state = updater.init(rng, data)
+
+                    def accuracy(params, rng, x, y):
+                        target_class = jnp.argmax(y, axis=1)
+                        predicted_class = jnp.argmax(
+                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=True), axis=1)
+                        return jnp.mean(predicted_class == target_class)
+
+                    state, metrics = updater.update(state, data)
+
+                    # Training logs
+                    if step % config["log_every"] == 0:
+                        steps_per_sec = config["log_every"] / \
+                            (time.time() - prev_time)
+                        prev_time = time.time()
+                        metrics.update({'steps_per_sec': steps_per_sec})
+                        logger(metrics, order=[
+                            'step',
+                            'loss',
+                            'steps_per_sec'
+                        ])
 
             # ============================ Evaluation logs ===========================
             evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy)
