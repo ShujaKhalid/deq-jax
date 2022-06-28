@@ -1,12 +1,12 @@
 {
     "dataset_path": "/home/skhalid/Documents/datalake/",
     "dataset": "Cityscapes",
-    "batch_size": 2,
+    "batch_size": 6,
     "transform": "None",
     "n_threads": 1,
-    "log_every": 1000,
+    "log_every": 10,
     "max_steps": 100000,
-    "deq_flag": "True",
+    "deq_flag": "False",
     "solver": 0,
     "log": "False",
     "mode": "seg",
@@ -25,9 +25,9 @@
     "model_attrs": {
         "patch_size": 8,
         "num_heads": 3,
-        "depth": 1,
+        "depth": 2,
         "vit_mode": "seg",
-        "latent_dims": "[128, 128, 128]",
+        "latent_dims": "[256, 256, 256]",
         "resample_dim": 256
     }
 }
