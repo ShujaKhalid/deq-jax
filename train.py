@@ -38,7 +38,7 @@ import argparse
 import functools
 from tqdm import tqdm
 from tkinter import X
-from utils.utils import evaluate
+from utils.utils import evaluate_cls, evaluate_seg
 from typing import Any, Mapping
 
 
@@ -444,7 +444,7 @@ def main(config):
                                )
 
             # ============================ Evaluation logs ===========================
-            evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy)
+            evaluate_cls(rng, state, epoch, config, ds_dict, preproc, accuracy)
             # ============================ Evaluation logs ===========================
 
     elif (config["mode"] == 'cls_trans'):
@@ -487,7 +487,7 @@ def main(config):
                         ])
 
             # ============================ Evaluation logs ===========================
-            evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy)
+            evaluate_cls(rng, state, epoch, config, ds_dict, preproc, accuracy)
             # ============================ Evaluation logs ===========================
 
     elif (config["mode"] == 'seg'):
@@ -530,7 +530,8 @@ def main(config):
                         ])
 
             # ============================ Evaluation logs ===========================
-            evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy)
+            evaluate_seg(rng, state, epoch, config,
+                         ds_dict, preproc, precision)
             # ============================ Evaluation logs ===========================
 
     return "Complete!"

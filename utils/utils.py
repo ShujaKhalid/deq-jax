@@ -52,7 +52,31 @@ def logger(data, order):
             msg + '  --- ', 'green', attrs=['bold'], end=' ')
 
 
-def evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy):
+def evaluate_cls(rng, state, epoch, config, ds_dict, preproc):
+    eval_trn = []
+    eval_tst = []
+    log_policy = eval(config["log_policy"])
+    if ("train" in log_policy):
+        for i, (x, y) in enumerate(tqdm(ds_dict['dl_trn'])):
+            x = preproc(x, config)
+            train_acc = accuracy(state['params'],
+                                 rng,
+                                 x,
+                                 jax.nn.one_hot(y, config["classes"]))
+            eval_trn.append(train_acc)
+    if ("valid" in log_policy):
+        for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
+            x = preproc(x, config)
+            test_acc = accuracy(state['params'],
+                                rng,
+                                x,
+                                jax.nn.one_hot(y, config["classes"]))
+            eval_tst.append(test_acc)
+            print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
+                                                                                   np.mean(eval_trn), np.mean(eval_tst)))
+
+
+def evaluate_seg(rng, state, epoch, config, ds_dict, preproc):
     eval_trn = []
     eval_tst = []
     log_policy = eval(config["log_policy"])
