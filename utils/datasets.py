@@ -39,9 +39,7 @@ class Datasets():
 
     def get_dataloader(self, mode):
         def collate_numpy(batch):
-            # print(batch)
-            # print("\nbatch.shape: {}\n".format(
-            #     [print(v[0].shape) for v in batch]))
+            # print([v[0].shape for v in batch])
 
             if isinstance(batch[0], np.ndarray):
                 return np.stack(batch)
@@ -59,18 +57,39 @@ class Datasets():
                                            collate_fn=collate_numpy)
 
     def get_dataset(self, train):
+        def make_jax_friendly_tgt(pic):
+            transform_cityscapes_friendly = transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                    #     0.229, 0.224, 0.225])
+                ])
+
+            if (self.dataset_name == "Cityscapes"):
+                pic = transform_cityscapes_friendly(pic)
+            return np.squeeze(np.array(pic, jnp.float32), axis=0)
+
         def make_jax_friendly(pic):
             transform_imagenet_friendly = transforms.Compose(
-                [transforms.Resize(256),
-                 transforms.CenterCrop(224),
-                 transforms.ToTensor(),
-                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
-                     0.229, 0.224, 0.225])
-                 ])
+                [
+                    transforms.Resize(256),
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                        0.229, 0.224, 0.225])
+                ])
+            transform_cityscapes_friendly = transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                        0.229, 0.224, 0.225])
+                ])
 
             if (self.dataset_name == "ImageNet"):
                 pic = transform_imagenet_friendly(pic)
 
+            if (self.dataset_name == "Cityscapes"):
+                pic = transform_cityscapes_friendly(pic)
             return np.array(pic, jnp.float32)
 
         if not self.dataset_name:
@@ -89,7 +108,8 @@ class Datasets():
                 mode="coarse",
                 # ["instance", "semantic", "polygon", "color"]
                 target_type="semantic",
-                transform=make_jax_friendly)
+                transform=make_jax_friendly,
+                target_transform=make_jax_friendly_tgt)
         else:
             return getattr(torchvision.datasets, self.dataset_name)(
                 root=self.dataset_path,

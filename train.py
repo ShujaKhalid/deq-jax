@@ -30,6 +30,7 @@ Note: Run with --alsologtostderr to see outputs.
 """
 
 import os
+from telnetlib import X3PAD
 import time
 import json
 import pickle
@@ -58,6 +59,8 @@ import jax.numpy as jnp
 import utils.dataset as dataset
 from utils.utils import logger
 from utils.utils import run
+from utils.utils import get_outputs
+from utils.utils import patchify
 # from tabulate import tabulate
 
 
@@ -116,7 +119,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             num_classes = config["classes"]
             latent_dims = eval(config["model_attrs"]["latent_dims"])
 
-            def seg_fn(x, is_training):
+            def cls_fn(x, is_training):
                 # TODO: move to config
                 patch_size = config["model_attrs"]["patch_size"]
                 num_heads = config["model_attrs"]["num_heads"]
@@ -128,16 +131,17 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                                       depth, resample_dim, vit_mode, latent_dims=latent_dims)
                 return model(x)
 
-            transformer_seg = hk.transform(seg_fn)
+            transformer_seg = hk.transform(cls_fn)
             z_star = run(config["deq_flag"] == "True", config["solver"], config["mode"], x,
                          transformer_seg, input_mask=False, max_iter=10)
 
             # Additional steps for downstream classification
-            # TODO: Why exactly do we discard everything else?
-            z_star = z_star[:, 0]
-            z_star = hk.Linear(latent_dims[2])(z_star)
-            z_star = jax.nn.gelu(z_star)
-            z_star = hk.Linear(num_classes)(z_star)
+            z_star = get_outputs(
+                z_star,
+                mode="cls",
+                resample_dim=config["model_attrs"]["resample_dim"],
+                patch_size=config["model_attrs"]["patch_size"],
+                num_classes=num_classes)
             return z_star
 
         # TODO: Add fusion modeule or the like...
@@ -161,6 +165,15 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             transformer_seg = hk.transform(seg_fn)
             z_star = run(config["deq_flag"] == "True", config["solver"], config["mode"], x,
                          transformer_seg, input_mask=False, max_iter=10)
+
+            # Additional steps for downstream classification
+            z_star = get_outputs(
+                z_star,
+                mode="seg",
+                resample_dim=config["model_attrs"]["resample_dim"],
+                patch_size=config["model_attrs"]["patch_size"],
+                num_classes=num_classes)
+            return z_star
 
             return z_star
 
@@ -309,27 +322,14 @@ class CheckpointingUpdater:
         return state, out
 
 
-def patchify(patch_size, x):
-    bsz, hgt, wdt, cnl = x.shape
-    input = x.reshape(bsz, cnl, hgt, wdt)
-    patches_qty = (hgt*wdt)//(patch_size * patch_size)
-    patches_dim = cnl*patch_size**2
-    patches = input.reshape(bsz, patches_qty, patches_dim)
-    # print("x.shape: {}".format(x.shape))
-    # print("patches.shape: {}".format(patches.shape))
-    # print("self.tokens_cls.shape: {}".format(self.tokens_cls.shape))
-    # print("self.embed_pos.shape: {}".format(self.embed_pos.shape))
-    return patches
-
-
 def preproc(x, config):
     x = np.expand_dims(x, axis=3) if len(x.shape) == 3 else x
     # TODO: fix
     x = np.repeat(x, 3, axis=3) if x.shape[3] == 1 else x
-    if (x.shape[1] == 3):
+    if (x.shape[-1] == 3):
         # shift c axis to the end
         # [B, C, H, W] -> [B, H, W, C]
-        x = np.transpose(x, (0, 2, 3, 1))
+        x = np.transpose(x, (0, 3, 1, 2))
 
     # Change the format of the data
     # from img -> img_patch

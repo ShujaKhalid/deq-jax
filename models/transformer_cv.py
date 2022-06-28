@@ -4,6 +4,7 @@ import numpy as np
 import jax.numpy as jnp
 
 from models.layers import Transformer
+import utils.utils as u
 
 
 class Interpolate(hk.Module):
@@ -15,22 +16,23 @@ class Interpolate(hk.Module):
         self.interp = jax.image.resize
 
     def __call__(self, x):
-        print(self.scale_factor)
         x = self.interp(
             x,
-            shape=(x.shape[0]*self.scale_factor,
+            shape=(x.shape[0],
                    x.shape[1]*self.scale_factor,
-                   x.shape[2]),
+                   x.shape[2]*self.scale_factor,
+                   x.shape[3]),
             method=self.method,
         )
         return x
 
 
 class HeadDepth(hk.Module):
-    def __init__(self, features):
+    def __init__(self, resample_dim, patch_size):
         super(HeadDepth, self).__init__()
-        self.features = features
+        self.features = resample_dim
         self.kernel_size = 2
+        self.patch_size = patch_size
         self.conv2d_1 = hk.Conv2D(self.features // 2,
                                   kernel_shape=self.kernel_size,
                                   stride=1,
@@ -43,12 +45,11 @@ class HeadDepth(hk.Module):
                                   kernel_shape=1,
                                   stride=1,
                                   padding=[0, 0])
-        self.interp = Interpolate(scale_factor=2)
+        self.interp = Interpolate(scale_factor=4)
         self.relu = jax.nn.relu
         self.sigmoid = jax.nn.sigmoid
 
     def __call__(self, x):
-        print("x.shape: {}".format(x.shape))
         x = self.conv2d_1(x)
         x = self.interp(x)  # replace with transConv?
         x = self.conv2d_2(x)
@@ -60,34 +61,43 @@ class HeadDepth(hk.Module):
 
 
 class HeadSeg(hk.Module):
-    def __init__(self, features, num_classes=2):
+    def __init__(self, resample_dim, patch_size, num_classes=2):
         super(HeadSeg, self).__init__()
-        self.features = features
+        self.resample_dim = resample_dim
         self.num_classes = num_classes
         self.kernel_size = 2
-        self.conv2d_1 = hk.Conv2D(self.features // 2,
+        self.patch_size = patch_size
+        self.fc1 = hk.Linear(self.resample_dim)
+        self.conv2d_1 = hk.Conv2D(self.resample_dim // 2,
                                   kernel_shape=self.kernel_size,
                                   stride=1,
-                                  padding=[1, 1])
+                                  padding=[0, 0])
         self.conv2d_2 = hk.Conv2D(32,
                                   kernel_shape=self.kernel_size,
                                   stride=1,
-                                  padding=[1, 1])
+                                  padding=[4, 5])
         self.conv2d_3 = hk.Conv2D(self.num_classes,
                                   kernel_shape=1,
                                   stride=1,
-                                  padding=[0, 0])
-        self.interp = Interpolate(scale_factor=2)
+                                  padding=[4, 4])
+        self.interp = Interpolate(scale_factor=16)
         self.relu = jax.nn.relu
         self.sigmoid = jax.nn.sigmoid
 
     def __call__(self, x):
-        print("x.shape: {}".format(x.shape))
+        print("x.shape (before patchify): {}".format(x.shape))
+        x = self.fc1(x)
+        x = u.unpatchify(self.patch_size, x)
+        print("x.shape (before conv2d_1): {}".format(x.shape))
         x = self.conv2d_1(x)
+        print("x.shape (before interp): {}".format(x.shape))
         x = self.interp(x)  # replace with transConv if necessary
+        print("x.shape (before conv2d_2): {}".format(x.shape))
         x = self.conv2d_2(x)
+        print("x.shape (before conv2d_3): {}".format(x.shape))
         x = self.relu(x)
         x = self.conv2d_3(x)
+        print("x.shape (after conv2d_3): {}".format(x.shape))
         # x = self.sigmoid(x)
         return x
 
@@ -128,8 +138,8 @@ class TransformerCV(hk.Module):
         self.mode = mode
         self.init = jax.nn.initializers.normal(stddev=1.0)
         self.resample_dim = resample_dim
-        self.head_depth = HeadDepth(self.resample_dim)
-        self.head_seg = HeadSeg(self.resample_dim, self.num_classes)
+        # self.head_seg = HeadSeg(self.resample_dim, self.num_classes)
+        # self.head_depth = HeadDepth(self.resample_dim)
         self.fc = hk.Linear(self.latent_dims[0])
         self.batch_size, self.patches_qty, self.cnl = self.x_size
         self.patches_dim = self.cnl*self.patch_size**2
@@ -173,23 +183,9 @@ class TransformerCV(hk.Module):
         x = Transformer(self.depth, self.num_heads,
                         self.latent_dims[1])(x)
 
-        if (self.mode == "seg"):
-            x = self.head_seg(x)
-        elif (self.mode == "depth"):
-            x = self.head_depth(x)
-        elif (self.mode == "cls"):
-            # print("(Before FC) x.shape: {}".format(x.shape))
-            x = x[:, :49, :48]  # TODO: FIX...
-            # print("(After FC before 2nd FC) x.shape: {}".format(x.shape))
-            # x = x[:, 0]  # TODO: Why exactly do we discard everything else?
-            # print("(Before FC after x[:, 0]) x.shape: {}".format(x.shape))
-            # x = hk.Linear(self.latent_dims[2])(x)
-            # print("(After FC before 2nd FC) x.shape: {}".format(x.shape))
-            # x = jax.nn.gelu(x)
-            # x = hk.Linear(self.num_classes)(x)
-        elif (self.mode == "segdepth"):
-            seg = self.head_seg(x)
-            depth = self.depth(x)
-            return seg, depth
+        print("Before strip: {}".format(x.shape))
+        x = x[:, :49, :48]  # TODO: FIX...
+        print(x.shape)
+        # x = x[:, :16, :192]  # TODO: FIX...
 
         return x

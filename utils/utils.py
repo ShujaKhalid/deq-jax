@@ -1,8 +1,11 @@
+from models.transformer_cv import HeadDepth
+from models.transformer_cv import HeadSeg
 import jax
 import numpy as np
 import haiku as hk
 import pandas as pd
 from tqdm import tqdm
+import jax.numpy as jnp
 from torch.utils import data
 from tabulate import tabulate
 from termcolor import cprint
@@ -69,8 +72,8 @@ def evaluate(rng, state, epoch, config, ds_dict, preproc, accuracy):
                                 x,
                                 jax.nn.one_hot(y, config["classes"]))
             eval_tst.append(test_acc)
-    print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
-          np.mean(eval_trn), np.mean(eval_tst)))
+            print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
+                                                                                   np.mean(eval_trn), np.mean(eval_tst)))
 
 
 def run(flag, solver, mode, x, model, input_mask, max_iter=10):
@@ -87,6 +90,7 @@ def run(flag, solver, mode, x, model, input_mask, max_iter=10):
         if (flag):
             def f(params, rng, x, input_mask):
                 return model.apply(params, rng, x, input_mask, is_training=True)
+
             z_star = deq(
                 params,
                 solver,
@@ -205,3 +209,53 @@ def qnm(fun, x, max_iter, eps, solver, mode, *args):
     )['result']
 
     return result_info
+
+
+def patchify(patch_size, x):
+    bsz, cnl, hgt, wdt = x.shape
+    patches_qty = (hgt*wdt)//(patch_size * patch_size)
+    patches_dim = cnl*patch_size**2
+    patches = x.reshape(bsz, patches_qty, patches_dim)
+    # print("patches.shape: {}".format(patches.shape))
+    # print("self.embed_pos.shape: {}".format(self.embed_pos.shape))
+    return patches
+
+
+def unpatchify(patch_size, patches):
+    # patches = patches[:, :-1, :]
+    # bsz, patches_qty, patches_dim = patches.shape
+    # hgt = wdt = int(np.sqrt(patches_qty * (patch_size * patch_size)))
+    # #cnl = patches_dim / patch_size**2
+    # cnl = (patches_qty * patches_dim) // (hgt * wdt)
+    # x = patches.reshape(bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
+    patches = patches[:, :-1, :]
+    bsz, patches_qty, patches_dim = patches.shape
+    # TODO: arbitrarily set - specifically for Cityscapes...
+    base_factor = 2
+    hgt = wdt = int(np.sqrt(patches_dim)) * base_factor
+    wdt = wdt * base_factor
+    cnl = (patches_qty) // (4*base_factor)
+    x = patches.reshape(bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
+    return x
+
+
+def get_outputs(x, mode, resample_dim, patch_size, num_classes):
+
+    if (mode == "seg"):
+        head_seg = HeadSeg(resample_dim, patch_size, num_classes)
+        x = head_seg(x)
+    elif (mode == "depth"):
+        head_dep = HeadDepth(resample_dim, patch_size)
+        x = head_dep(x)
+    elif (mode == "cls"):
+        # z_star = jnp.mean(z_star[:, 0])
+        x = jnp.mean(x, axis=1)
+        x = hk.Linear(resample_dim)(x)
+        x = jax.nn.gelu(x)
+        x = hk.Linear(num_classes)(x)
+    # elif (mode == "segdepth"):
+    #     seg = head_seg(x)
+    #     depth = depth(x)
+    #     return seg, depth
+
+    return x

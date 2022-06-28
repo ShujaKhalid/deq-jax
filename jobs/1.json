@@ -1,16 +1,16 @@
 {
     "dataset_path": "/home/skhalid/Documents/datalake/",
-    "dataset": "MNIST",
-    "batch_size": 32,
+    "dataset": "Cityscapes",
+    "batch_size": 16,
     "transform": "None",
     "n_threads": 1,
     "log_every": 1000,
     "max_steps": 100000,
-    "deq_flag": "True",
+    "deq_flag": "False",
     "solver": 0,
     "log": "False",
-    "mode": "cls_trans",
-    "epochs": 100,
+    "mode": "seg",
+    "epochs": 500,
     "classes": 10,
     "num_heads": 4,
     "num_layers": 4,
@@ -23,11 +23,11 @@
     "logdir": "./logs/",
     "log_policy": "[\"valid\"]",
     "model_attrs": {
-        "patch_size": 4,
+        "patch_size": 8,
         "num_heads": 3,
-        "depth": 3,
-        "vit_mode": "cls",
+        "depth": 1,
+        "vit_mode": "seg",
         "latent_dims": "[128, 128, 128]",
-        "resample_dim": 256
+        "resample_dim": 1024
     }
 }
