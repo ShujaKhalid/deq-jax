@@ -72,15 +72,15 @@ class HeadSeg(hk.Module):
                                   kernel_shape=self.kernel_size,
                                   stride=1,
                                   padding=[0, 0])
-        self.conv2d_2 = hk.Conv2D(32,
-                                  kernel_shape=self.kernel_size,
-                                  stride=1,
-                                  padding=[4, 5])
+        # self.conv2d_2 = hk.Conv2D(32,
+        #                           kernel_shape=self.kernel_size,
+        #                           stride=1,
+        #                           padding=[10, 11])
         self.conv2d_3 = hk.Conv2D(self.num_classes,
                                   kernel_shape=1,
                                   stride=1,
-                                  padding=[4, 4])
-        self.interp = Interpolate(scale_factor=16)
+                                  padding=[16, 16])
+        self.interp = Interpolate(scale_factor=32)
         self.relu = jax.nn.relu
         self.sigmoid = jax.nn.sigmoid
 
@@ -93,8 +93,8 @@ class HeadSeg(hk.Module):
         print("x.shape (before interp): {}".format(x.shape))
         x = self.interp(x)  # replace with transConv if necessary
         print("x.shape (before conv2d_2): {}".format(x.shape))
-        x = self.conv2d_2(x)
-        print("x.shape (before conv2d_3): {}".format(x.shape))
+        #x = self.conv2d_2(x)
+        #print("x.shape (before conv2d_3): {}".format(x.shape))
         x = self.relu(x)
         x = self.conv2d_3(x)
         print("x.shape (after conv2d_3): {}".format(x.shape))

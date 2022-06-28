@@ -1,7 +1,7 @@
 {
     "dataset_path": "/home/skhalid/Documents/datalake/",
     "dataset": "Cityscapes",
-    "batch_size": 16,
+    "batch_size": 2,
     "transform": "None",
     "n_threads": 1,
     "log_every": 1000,
@@ -11,9 +11,9 @@
     "log": "False",
     "mode": "seg",
     "epochs": 500,
-    "classes": 10,
-    "num_heads": 4,
-    "num_layers": 4,
+    "classes": 8,
+    "num_heads": 0,
+    "num_layers": 0,
     "learning_rate": 3e-4,
     "grad_clip_value": 1,
     "dropout_rate": 0.1,
@@ -28,6 +28,6 @@
         "depth": 1,
         "vit_mode": "seg",
         "latent_dims": "[128, 128, 128]",
-        "resample_dim": 1024
+        "resample_dim": 256
     }
 }
