@@ -509,6 +509,18 @@ def main(config):
                         # Initialize state
                         state = updater.init(rng, data)
 
+                    # Jaccard similarity
+                    def jaccard(x, y):
+                        xt = x != 0
+                        yt = y != 0
+                        num = jnp.sum(jnp.logical_xor(
+                            xt, yt).astype(jnp.int32))
+                        denom = jnp.sum(jnp.logical_or(jnp.logical_and(
+                            xt, yt), jnp.logical_xor(xt, yt)).astype(jnp.int32))
+                        return jnp.where(denom == 0, 0.0, num.astype(jnp.float32) / denom)
+                        # mean IoU
+
+                    # mean average precision
                     def accuracy(params, rng, x, y):
                         target_class = jnp.argmax(y, axis=1)
                         predicted_class = jnp.argmax(
@@ -531,7 +543,7 @@ def main(config):
 
             # ============================ Evaluation logs ===========================
             evaluate_seg(rng, state, epoch, config,
-                         ds_dict, preproc, precision)
+                         ds_dict, preproc, jaccard)
             # ============================ Evaluation logs ===========================
 
     return "Complete!"
