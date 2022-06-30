@@ -147,6 +147,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
         # TODO: Add fusion modeule or the like...
         elif (config["mode"] == 'seg'):
             from models.transformer_cv import TransformerCV
+            # print("data[\'obs\']: {}".format(data['obs']))
             x = data['obs'].astype('float32')
             num_classes = config["classes"]
 
@@ -173,8 +174,6 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 resample_dim=config["model_attrs"]["resample_dim"],
                 patch_size=config["model_attrs"]["patch_size"],
                 num_classes=num_classes)
-            return z_star
-
             return z_star
 
     return forward_fn
@@ -216,8 +215,20 @@ def vm_loss_fn(forward_fn,
 
 
 # TODO: custom segmentation loss
-def seg_loff_fn():
-    loss = 0
+def seg_loss_fn(forward_fn,
+                classes: int,
+                params,
+                rng,
+                data: Mapping[str, jnp.ndarray],
+                is_training: bool = True) -> jnp.ndarray:
+    """Compute the loss on data wrt params."""
+    # print('data.shape: {}'.format(data))
+    logits = forward_fn(params, rng, data, is_training)
+    targets = jax.nn.one_hot(data['target'], classes)
+    print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
+    assert logits.shape == targets.shape
+    loss = jnp.sum(-jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1))
+
     return loss
 
 
@@ -370,7 +381,7 @@ def main(config):
                                       config["num_layers"], config["dropout_rate"])
         forward_fn = hk.transform(forward_fn)
         loss_fn = functools.partial(
-            vm_loss_fn, forward_fn.apply, config['classes'])
+            seg_loss_fn, forward_fn.apply, config['classes'])
 
     optimizer = optax.chain(
         optax.clip_by_global_norm(config["grad_clip_value"]),
@@ -426,7 +437,7 @@ def main(config):
                     def accuracy(params, rng, x, y):
                         target_class = jnp.argmax(y, axis=1)
                         predicted_class = jnp.argmax(
-                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=True), axis=1)
+                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
                         return jnp.mean(predicted_class == target_class)
 
                     state, metrics = updater.update(state, data)
@@ -469,7 +480,7 @@ def main(config):
                     def accuracy(params, rng, x, y):
                         target_class = jnp.argmax(y, axis=1)
                         predicted_class = jnp.argmax(
-                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=True), axis=1)
+                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
                         return jnp.mean(predicted_class == target_class)
 
                     state, metrics = updater.update(state, data)
@@ -510,21 +521,24 @@ def main(config):
                         state = updater.init(rng, data)
 
                     # Jaccard similarity
-                    def jaccard(x, y):
-                        xt = x != 0
+                    def jaccard(params, rng, x, y):
+                        # predicted = forward_fn.apply(params, rng, data={
+                        #    'obs': x, 'target': y}, is_training=False)
+                        predicted = jax.jit(forward_fn.apply)(params, rng, data={
+                            'obs': x, 'target': y}, is_training=False)
+                        xt = predicted != 0
                         yt = y != 0
                         num = jnp.sum(jnp.logical_xor(
                             xt, yt).astype(jnp.int32))
                         denom = jnp.sum(jnp.logical_or(jnp.logical_and(
                             xt, yt), jnp.logical_xor(xt, yt)).astype(jnp.int32))
                         return jnp.where(denom == 0, 0.0, num.astype(jnp.float32) / denom)
-                        # mean IoU
 
                     # mean average precision
                     def accuracy(params, rng, x, y):
                         target_class = jnp.argmax(y, axis=1)
                         predicted_class = jnp.argmax(
-                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=True), axis=1)
+                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
                         return jnp.mean(predicted_class == target_class)
 
                     state, metrics = updater.update(state, data)
@@ -540,8 +554,13 @@ def main(config):
                             'loss',
                             'steps_per_sec'
                         ])
+                else:
+                    break
 
+            # for j, k in ds_dict['dl_trn']:
+            #     print(j)
             # ============================ Evaluation logs ===========================
+            print("Calling evaluate function...")
             evaluate_seg(rng, state, epoch, config,
                          ds_dict, preproc, jaccard)
             # ============================ Evaluation logs ===========================

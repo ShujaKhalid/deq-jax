@@ -90,7 +90,10 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, jaccard):
             eval_trn.append(train_jac)
     if ("valid" in log_policy):
         for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
-            x = preproc(x, config)
+            #print("x (before preproc): {}".format(x))
+            #print("y: {}".format(y))
+            x = jnp.array(preproc(x, config))
+            #print("np.unique(y): {}".format(np.unique(y)))
             test_jac = jaccard(state['params'],
                                rng,
                                x,
@@ -267,6 +270,11 @@ def get_outputs(x, mode, resample_dim, patch_size, num_classes):
 
     if (mode == "seg"):
         head_seg = HeadSeg(resample_dim, patch_size, num_classes)
+        # print("get_outputs - x: {}".format(x))
+        # print("resample_dim - x: {}".format(resample_dim))
+        # print("patch_size - x: {}".format(patch_size))
+        # print("num_classes - x: {}".format(num_classes))
+        # print("resample_dim - x: {}".format(resample_dim))
         x = head_seg(x)
     elif (mode == "depth"):
         head_dep = HeadDepth(resample_dim, patch_size)

@@ -85,19 +85,20 @@ class HeadSeg(hk.Module):
         self.sigmoid = jax.nn.sigmoid
 
     def __call__(self, x):
-        print("x.shape (before patchify): {}".format(x.shape))
+        #print("x.shape (before patchify): {}".format(x.shape))
         x = self.fc1(x)
         x = u.unpatchify(self.patch_size, x)
-        print("x.shape (before conv2d_1): {}".format(x.shape))
+        #print("x.shape (before conv2d_1): {}".format(x.shape))
+        #print("x (before conv2d_1): {}".format(x))
         x = self.conv2d_1(x)
-        print("x.shape (before interp): {}".format(x.shape))
+        # print("x.shape (before interp): {}".format(x.shape))
         x = self.interp(x)  # replace with transConv if necessary
-        print("x.shape (before conv2d_2): {}".format(x.shape))
+        # print("x.shape (before conv2d_2): {}".format(x.shape))
         #x = self.conv2d_2(x)
         #print("x.shape (before conv2d_3): {}".format(x.shape))
         x = self.relu(x)
         x = self.conv2d_3(x)
-        print("x.shape (after conv2d_3): {}".format(x.shape))
+        # print("x.shape (after conv2d_3): {}".format(x.shape))
         # x = self.sigmoid(x)
         return x
 
