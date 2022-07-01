@@ -102,7 +102,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             # updater needs to be passed downstream...
         elif (config["mode"] == 'cls'):
             x = data['obs'].astype('float32')
-            num_classes = config["classes"]
+            num_classes = config["num_classes"]
 
             def resnet_fn(x, is_training):
                 model = resnet.ResNet18(
@@ -116,7 +116,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
         elif (config["mode"] == 'cls_trans'):
             from models.transformer_cv import TransformerCV
             x = data['obs'].astype('float32')
-            num_classes = config["classes"]
+            num_classes = config["num_classes"]
             latent_dims = eval(config["model_attrs"]["latent_dims"])
 
             def cls_fn(x, is_training):
@@ -149,7 +149,7 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
             from models.transformer_cv import TransformerCV
             # print("data[\'obs\']: {}".format(data['obs']))
             x = data['obs'].astype('float32')
-            num_classes = config["classes"]
+            num_classes = config["num_classes"]
 
             def seg_fn(x, is_training):
                 # TODO: move to config
@@ -164,16 +164,22 @@ def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
                 return model(x)
 
             transformer_seg = hk.transform(seg_fn)
-            z_star = run(config["deq_flag"] == "True", config["solver"], config["mode"], x,
+            z_star = run(config, x,
                          transformer_seg, input_mask=False, max_iter=10)
+            # Additional steps for downstream segmentation
+            # config["mode"] = "seg_head"
+            # print("z_star: {}".format(z_star))
 
-            # Additional steps for downstream classification
-            z_star = get_outputs(
-                z_star,
-                mode="seg",
-                resample_dim=config["model_attrs"]["resample_dim"],
-                patch_size=config["model_attrs"]["patch_size"],
-                num_classes=num_classes)
+            # transformer_seg_out = hk.transform(get_outputs)
+            # z_star = run(config, z_star,
+            #              transformer_seg_out, input_mask=False, max_iter=10)
+            # print("z_star: {}".format(z_star))
+            # z_star = get_outputs(
+            #     z_star,
+            #     mode="seg",
+            #     resample_dim=config["model_attrs"]["resample_dim"],
+            #     patch_size=config["model_attrs"]["patch_size"],
+            #     num_classes=num_classes)
             return z_star
 
     return forward_fn
@@ -223,8 +229,11 @@ def seg_loss_fn(forward_fn,
                 is_training: bool = True) -> jnp.ndarray:
     """Compute the loss on data wrt params."""
     # print('data.shape: {}'.format(data))
-    logits = forward_fn(params, rng, data, is_training)
-    targets = jax.nn.one_hot(data['target'], classes)
+    logits = forward_fn(params, rng, data, is_training)[:, :, :, 0]
+    #targets = jax.nn.one_hot(data['target'], classes)
+    targets = data['target']
+    # print("targets.shape: {}".format(targets.shape))
+    # print("logits.shape: {}".format(logits.shape))
     print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
     assert logits.shape == targets.shape
     loss = jnp.sum(-jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1))
@@ -326,8 +335,9 @@ class CheckpointingUpdater:
                                 'checkpoint_{:07d}.pkl'.format(step))
             checkpoint_state = jax.device_get(state)
             logging.info('Serializing experiment state to %s', path)
-            with open(path, 'wb') as f:
-                pickle.dump(checkpoint_state, f)
+            # TODO: dont add to the checkpoint
+            # with open(path, 'wb') as f:
+            #     pickle.dump(checkpoint_state, f)
 
         state, out = self._inner.update(state, data)
         return state, out
@@ -365,23 +375,23 @@ def main(config):
         loss_fn = functools.partial(
             lm_loss_fn, forward_fn.apply, vocab_size)
     elif (config["mode"] == 'cls'):
-        forward_fn = build_forward_fn(config['classes'], config["d_model"], config["num_heads"],
+        forward_fn = build_forward_fn(config['num_classes'], config["d_model"], config["num_heads"],
                                       config["num_layers"], config["dropout_rate"])
         forward_fn = hk.transform(forward_fn)
         loss_fn = functools.partial(
             vm_loss_fn, forward_fn.apply, config['classes'])
     elif (config["mode"] == 'cls_trans'):
-        forward_fn = build_forward_fn(config['classes'], config["d_model"], config["num_heads"],
+        forward_fn = build_forward_fn(config['num_classes'], config["d_model"], config["num_heads"],
                                       config["num_layers"], config["dropout_rate"])
         forward_fn = hk.transform(forward_fn)
         loss_fn = functools.partial(
             vm_loss_fn, forward_fn.apply, config['classes'])
     elif (config["mode"] == 'seg'):
-        forward_fn = build_forward_fn(config['classes'], config["d_model"], config["num_heads"],
+        forward_fn = build_forward_fn(config['num_classes'], config["d_model"], config["num_heads"],
                                       config["num_layers"], config["dropout_rate"])
         forward_fn = hk.transform(forward_fn)
         loss_fn = functools.partial(
-            seg_loss_fn, forward_fn.apply, config['classes'])
+            seg_loss_fn, forward_fn.apply, config['num_classes'])
 
     optimizer = optax.chain(
         optax.clip_by_global_norm(config["grad_clip_value"]),
@@ -521,12 +531,14 @@ def main(config):
                         state = updater.init(rng, data)
 
                     # Jaccard similarity
-                    def jaccard(params, rng, x, y):
-                        # predicted = forward_fn.apply(params, rng, data={
-                        #    'obs': x, 'target': y}, is_training=False)
-                        predicted = jax.jit(forward_fn.apply)(params, rng, data={
-                            'obs': x, 'target': y}, is_training=False)
-                        xt = predicted != 0
+                    def jaccard(params, rng, x_patch, x, y, save_img_to_folder):
+                        y_hat = jax.jit(forward_fn.apply)(params, rng, data={
+                            'obs': x_patch, 'target': y}, is_training=False)
+                        # print("x.shape: {}".format(x.shape))
+                        # print("y.shape: {}".format(y.shape))
+                        # print("y_hat.shape: {}".format(y_hat.shape))
+                        save_img_to_folder(config, x, y, y_hat)
+                        xt = y_hat != 0
                         yt = y != 0
                         num = jnp.sum(jnp.logical_xor(
                             xt, yt).astype(jnp.int32))

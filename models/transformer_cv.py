@@ -184,10 +184,9 @@ class TransformerCV(hk.Module):
         x = Transformer(self.depth, self.num_heads,
                         self.latent_dims[1])(x)
 
-        print("Before strip: {}".format(x.shape))
+        # print("Before strip: {}".format(x.shape))
         # x = x[:, :49, :48]  # TODO: FIX...
         x = x[:, :784, :192]  # TODO: FIX...
-        print(x.shape)
         # x = x[:, :16, :192]  # TODO: FIX...
 
         return x

@@ -58,16 +58,19 @@ class Datasets():
 
     def get_dataset(self, train):
         def make_jax_friendly_tgt(pic):
-            transform_cityscapes_friendly = transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
-                    #     0.229, 0.224, 0.225])
-                ])
+            # transform_cityscapes_friendly = transforms.Compose(
+            #     # REALLY IMPORTANT TO NOT USE TOTENSOR HERE!!!
+            #     # This is a target mask...
+            #     [
+            #         transforms.ToTensor(),
+            #         # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+            #         #     0.229, 0.224, 0.225])
+            #     ])
 
-            if (self.dataset_name == "Cityscapes"):
-                pic = transform_cityscapes_friendly(pic)
-            return np.squeeze(np.array(pic, jnp.float32), axis=0)
+            # if (self.dataset_name == "Cityscapes"):
+            #     pic = transform_cityscapes_friendly(pic)
+            pic = np.array(pic)
+            return np.array(pic, jnp.float32)
 
         def make_jax_friendly(pic):
             transform_imagenet_friendly = transforms.Compose(

@@ -1,3 +1,4 @@
+from pickletools import uint8
 from models.transformer_cv import HeadDepth
 from models.transformer_cv import HeadSeg
 import jax
@@ -10,6 +11,8 @@ from torch.utils import data
 from tabulate import tabulate
 from termcolor import cprint
 from models.deq import deq
+from PIL import Image
+import functools
 
 
 class NumpyLoader(data.DataLoader):
@@ -62,7 +65,7 @@ def evaluate_cls(rng, state, epoch, config, ds_dict, preproc, accuracy):
             train_acc = accuracy(state['params'],
                                  rng,
                                  x,
-                                 jax.nn.one_hot(y, config["classes"]))
+                                 jax.nn.one_hot(y, config["num_classes"]))
             eval_trn.append(train_acc)
     if ("valid" in log_policy):
         for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
@@ -70,7 +73,7 @@ def evaluate_cls(rng, state, epoch, config, ds_dict, preproc, accuracy):
             test_acc = accuracy(state['params'],
                                 rng,
                                 x,
-                                jax.nn.one_hot(y, config["classes"]))
+                                jax.nn.one_hot(y, config["num_classes"]))
             eval_tst.append(test_acc)
             print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
                                                                                    np.mean(eval_trn), np.mean(eval_tst)))
@@ -86,42 +89,66 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, jaccard):
             train_jac = jaccard(state['params'],
                                 rng,
                                 x,
-                                jax.nn.one_hot(y, config["classes"]))
+                                jax.nn.one_hot(y, config["num_classes"]))
             eval_trn.append(train_jac)
     if ("valid" in log_policy):
         for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
-            #print("x (before preproc): {}".format(x))
-            #print("y: {}".format(y))
-            x = jnp.array(preproc(x, config))
-            #print("np.unique(y): {}".format(np.unique(y)))
+            # print("x (before preproc): {}".format(x))
+            # print("y: {}".format(y))
+            x_patch = jnp.array(preproc(x, config))
+            # print("np.unique(y): {}".format(np.unique(y)))
             test_jac = jaccard(state['params'],
                                rng,
+                               x_patch,
                                x,
-                               jax.nn.one_hot(y, config["classes"]))
+                               jax.nn.one_hot(y, config["num_classes"]),
+                               functools.partial(save_img_to_folder, i))
             eval_tst.append(test_jac)
-            print("epoch: {} - iter: {} - jac_trn {:.2f} - jac_tst: {:.2f}".format(epoch, i,
-                                                                                   np.mean(eval_trn), np.mean(eval_tst)))
+        print("epoch: {} - iter: {} - jac_trn {:.2f} - jac_tst: {:.2f}".format(epoch, i,
+                                                                               np.mean(eval_trn), np.mean(eval_tst)))
 
 
-def run(flag, solver, mode, x, model, input_mask, max_iter=10):
+def save_img_to_folder(i, config, x, y, y_hat):
+    save_loc = config["checkpoint_dir"]
+    #print("Saving to {}".format(save_loc+str(i)+"_pred.png"))
+
+    img_orig = (x[-1, :, :, :].transpose(1, 2, 0) * 255).astype(np.uint8)
+    img_orig = Image.fromarray(img_orig)
+    img_orig.save(save_loc+str(i)+"_orig.png")
+
+    img_seg = (np.asarray(
+        np.mean(y[-1, :, :], axis=-1)) * 255).astype(np.uint8)
+
+    img_seg = Image.fromarray(img_seg)
+    img_seg.save(save_loc+str(i)+"_seg.png")
+
+    img_pred = (np.asarray(np.mean(
+        y_hat[-1, :, :, :], axis=-1)) * 255).astype(np.uint8)
+    img_pred = Image.fromarray(img_pred)
+    img_pred.save(save_loc+str(i)+"_pred.png")
+
+    return
+
+
+def run(config, x, model, input_mask, max_iter=10):
     '''
     gen_stats:
     max_iter = 10
     solver = 0  # 0: Broyden ; 1: Anderson ; 2: secant
     '''
-    if (mode == 'text'):
+    if (config["mode"] == 'text'):
         rng = hk.next_rng_key()
         params = hk.experimental.lift(
             model.init)(rng, x, input_mask, is_training=True)
         # Define a callable function for ease of access downstream
-        if (flag):
+        if (config["deq_flag"] == "True"):
             def f(params, rng, x, input_mask):
                 return model.apply(params, rng, x, input_mask, is_training=True)
 
             z_star = deq(
                 params,
-                solver,
-                0 if mode == "text" else 1,
+                config["solver"],
+                0 if config["mode"] == "text" else 1,
                 hk.next_rng_key(),
                 x,
                 f,
@@ -134,21 +161,21 @@ def run(flag, solver, mode, x, model, input_mask, max_iter=10):
                                  x,
                                  input_mask,
                                  is_training=True)
-    elif (mode == 'cls'):
+    elif (config["mode"] == 'cls'):
         # params, state = model.init(hk.next_rng_key(), x, is_training=True)
         rng = hk.next_rng_key()
         params_and_state_fn, updater = hk.experimental.lift_with_state(
             model.init)
         params, state = params_and_state_fn(rng, x, is_training=True)
-        if (flag):
+        if (config["deq_flag"] == "True"):
             # Define a callable function for ease of access downstream
             def f(params, state, rng, x):
                 return model.apply(params, state, rng, x)
 
             z_star = deq(
                 params,
-                solver,
-                0 if mode == "text" else 1,
+                config["solver"],
+                0 if config["mode"] == "text" else 1,
                 hk.next_rng_key(),
                 x,
                 f,
@@ -160,20 +187,20 @@ def run(flag, solver, mode, x, model, input_mask, max_iter=10):
                                         None,
                                         x,
                                         is_training=True)
-    elif (mode == 'cls_trans'):
+    elif (config["mode"] == 'cls_trans'):
         # params, state = model.init(hk.next_rng_key(), x, is_training=True)
         rng = hk.next_rng_key()
         params = hk.experimental.lift(
             model.init)(rng, x, is_training=True)
-        if (flag):
+        if (config["deq_flag"] == "True"):
             # Define a callable function for ease of access downstream
             def f(params, state, rng, x):
                 return model.apply(params, state, rng, x)
 
             z_star = deq(
                 params,
-                solver,
-                0 if mode == "text" else 1,
+                config["solver"],
+                0 if config["mode"] == "text" else 1,
                 hk.next_rng_key(),
                 x,
                 f,
@@ -184,20 +211,20 @@ def run(flag, solver, mode, x, model, input_mask, max_iter=10):
                                  None,
                                  x,
                                  is_training=True)
-    elif (mode == 'seg'):
+    elif (config["mode"] == 'seg'):
         # params, state = model.init(hk.next_rng_key(), x, is_training=True)
         rng = hk.next_rng_key()
         params = hk.experimental.lift(
             model.init)(rng, x, is_training=True)
-        if (flag):
+        if (config["deq_flag"] == "True"):
             # Define a callable function for ease of access downstream
             def f(params, state, rng, x):
                 return model.apply(params, state, rng, x)
 
             z_star = deq(
                 params,
-                solver,
-                0 if mode == "text" else 1,
+                config["solver"] == "",
+                0 if config["mode"] == "text" else 1,
                 hk.next_rng_key(),
                 x,
                 f,
@@ -208,6 +235,14 @@ def run(flag, solver, mode, x, model, input_mask, max_iter=10):
                                  None,
                                  x,
                                  is_training=True)
+
+        # Get the segmentation head
+        def seg_head_fn(x, config):
+            return get_outputs(x, config)
+        seg_head_fn = hk.transform(seg_head_fn)
+        params = hk.experimental.lift(
+            seg_head_fn.init)(rng, z_star, config)
+        z_star = seg_head_fn.apply(params, rng, z_star, config)
 
     return z_star
 
@@ -266,15 +301,14 @@ def unpatchify(patch_size, patches):
     return x
 
 
-def get_outputs(x, mode, resample_dim, patch_size, num_classes):
+def get_outputs(x, config):
+    mode = config["mode"]
+    resample_dim = config["model_attrs"]["resample_dim"]
+    patch_size = config["model_attrs"]["patch_size"]
+    num_classes = config["num_classes"]
 
     if (mode == "seg"):
         head_seg = HeadSeg(resample_dim, patch_size, num_classes)
-        # print("get_outputs - x: {}".format(x))
-        # print("resample_dim - x: {}".format(resample_dim))
-        # print("patch_size - x: {}".format(patch_size))
-        # print("num_classes - x: {}".format(num_classes))
-        # print("resample_dim - x: {}".format(resample_dim))
         x = head_seg(x)
     elif (mode == "depth"):
         head_dep = HeadDepth(resample_dim, patch_size)
@@ -285,6 +319,8 @@ def get_outputs(x, mode, resample_dim, patch_size, num_classes):
         x = hk.Linear(resample_dim)(x)
         x = jax.nn.gelu(x)
         x = hk.Linear(num_classes)(x)
+    else:
+        raise Exception("get_outputs incorrectly selected")
     # elif (mode == "segdepth"):
     #     seg = head_seg(x)
     #     depth = depth(x)
