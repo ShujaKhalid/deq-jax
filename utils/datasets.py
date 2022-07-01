@@ -110,7 +110,7 @@ class Datasets():
                 root=self.dataset_path+"cityscapes",
                 split="train" if train else "val",
                 # ["coarse", "fine"]
-                mode="coarse",
+                mode="fine",
                 # ["instance", "semantic", "polygon", "color"]
                 target_type="semantic",
                 transform=make_jax_friendly,

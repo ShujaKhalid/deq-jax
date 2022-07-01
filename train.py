@@ -230,8 +230,8 @@ def seg_loss_fn(forward_fn,
     """Compute the loss on data wrt params."""
     # print('data.shape: {}'.format(data))
     logits = forward_fn(params, rng, data, is_training)[:, :, :, 0]
-    #targets = jax.nn.one_hot(data['target'], classes)
-    targets = data['target']
+    targets = jax.nn.one_hot(data['target'], classes)
+    #targets = data['target']
     # print("targets.shape: {}".format(targets.shape))
     # print("logits.shape: {}".format(logits.shape))
     print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
@@ -361,6 +361,9 @@ def preproc(x, config):
 def main(config):
 
     config["checkpoint_dir"] = config["logdir"] + str(int(time.time())) + "/"
+
+    # Save a snapshot of the code to the checkpoint directory
+    os.system("cp -pr ./models ./solvers ./utils "+config["checkpoint_dir"])
 
     # Create the dataset.
     if (config["mode"] == 'text'):
@@ -537,6 +540,8 @@ def main(config):
                         # print("x.shape: {}".format(x.shape))
                         # print("y.shape: {}".format(y.shape))
                         # print("y_hat.shape: {}".format(y_hat.shape))
+                        print("np.unique(y_hat): {}".format(np.unique(y_hat)))
+                        print("np.unique(y): {}".format(np.unique(y)))
                         save_img_to_folder(config, x, y, y_hat)
                         xt = y_hat != 0
                         yt = y != 0

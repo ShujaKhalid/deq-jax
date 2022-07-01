@@ -11,7 +11,7 @@
     "log": "False",
     "mode": "seg",
     "epochs": 500,
-    "num_classes": 1,
+    "num_classes": 30,
     "num_heads": 0,
     "num_layers": 1,
     "learning_rate": 3e-4,
