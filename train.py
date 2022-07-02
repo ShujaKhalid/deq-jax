@@ -229,7 +229,7 @@ def seg_loss_fn(forward_fn,
                 is_training: bool = True) -> jnp.ndarray:
     """Compute the loss on data wrt params."""
     # print('data.shape: {}'.format(data))
-    logits = forward_fn(params, rng, data, is_training)[:, :, :, 0]
+    logits = forward_fn(params, rng, data, is_training)
     targets = jax.nn.one_hot(data['target'], classes)
     #targets = data['target']
     # print("targets.shape: {}".format(targets.shape))
@@ -315,6 +315,9 @@ class CheckpointingUpdater:
         """Initialize experiment state."""
         if not os.path.exists(self._checkpoint_dir) or not self._checkpoint_paths():
             os.makedirs(self._checkpoint_dir, exist_ok=True)
+            # Save a snapshot of the code to the checkpoint directory
+            os.system("cp -pr ./models ./solvers ./utils " +
+                      config["checkpoint_dir"])
             return self._inner.init(rng, data)
         else:
             checkpoint = os.path.join(self._checkpoint_dir,
@@ -361,9 +364,6 @@ def preproc(x, config):
 def main(config):
 
     config["checkpoint_dir"] = config["logdir"] + str(int(time.time())) + "/"
-
-    # Save a snapshot of the code to the checkpoint directory
-    os.system("cp -pr ./models ./solvers ./utils "+config["checkpoint_dir"])
 
     # Create the dataset.
     if (config["mode"] == 'text'):

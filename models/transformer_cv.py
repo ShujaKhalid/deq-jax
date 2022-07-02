@@ -99,7 +99,7 @@ class HeadSeg(hk.Module):
         x = self.relu(x)
         x = self.conv2d_3(x)
         # print("x.shape (after conv2d_3): {}".format(x.shape))
-        # x = self.sigmoid(x)
+        x = self.sigmoid(x)
         return x
 
 # TODO [PanSeg update incoming...]

@@ -117,7 +117,7 @@ def save_img_to_folder(i, config, x, y, y_hat):
     img_orig.save(save_loc+str(i)+"_orig.png")
 
     img_seg = (np.asarray(
-        np.mean(y[-1, :, :], axis=-1)) * 255).astype(np.uint8)
+        np.max(y[-1, :, :], axis=-1)) * 255).astype(np.uint8)
 
     img_seg = Image.fromarray(img_seg)
     img_seg.save(save_loc+str(i)+"_seg.png")
