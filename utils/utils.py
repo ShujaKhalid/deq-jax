@@ -112,20 +112,19 @@ def save_img_to_folder(i, config, x, y, y_hat):
     save_loc = config["checkpoint_dir"]
     #print("Saving to {}".format(save_loc+str(i)+"_pred.png"))
 
-    img_orig = (x[-1, :, :, :].transpose(1, 2, 0) * 255).astype(np.uint8)
+    img_orig = (x[-1, :, :, :].transpose(2, 3, 1) * 255).astype(np.uint8)
     img_orig = Image.fromarray(img_orig)
-    img_orig.save(save_loc+str(i)+"_orig.png")
+    img_orig.save(save_loc+str(i)+"_"+str(j)+"_orig.png")
 
-    img_seg = (np.asarray(
-        np.max(y[-1, :, :], axis=-1)) * 255).astype(np.uint8)
+    # Print the results out class by class
+    for j in range(x.shape[0]):
+        img_seg = (np.asarray(y[-1, :, :, j]) * 255).astype(np.uint8)
+        img_seg = Image.fromarray(img_seg)
+        img_seg.save(save_loc+str(i)+"_"+str(j)+"_seg.png")
 
-    img_seg = Image.fromarray(img_seg)
-    img_seg.save(save_loc+str(i)+"_seg.png")
-
-    img_pred = (np.asarray(np.mean(
-        y_hat[-1, :, :, :], axis=-1)) * 255).astype(np.uint8)
-    img_pred = Image.fromarray(img_pred)
-    img_pred.save(save_loc+str(i)+"_pred.png")
+        img_pred = (np.asarray(y_hat[-1, :, :, j]) * 255).astype(np.uint8)
+        img_pred = Image.fromarray(img_pred)
+        img_pred.save(save_loc+str(i)+"_"+str(j)+"_pred.png")
 
     return
 
