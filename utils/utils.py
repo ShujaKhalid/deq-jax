@@ -112,7 +112,7 @@ def save_img_to_folder(i, config, x, y, y_hat):
     save_loc = config["checkpoint_dir"]
     #print("Saving to {}".format(save_loc+str(i)+"_pred.png"))
 
-    img_orig = (x[-1, :, :, :].transpose(2, 3, 1) * 255).astype(np.uint8)
+    img_orig = (x[-1, :, :, :].transpose(1, 2, 0) * 255).astype(np.uint8)
     img_orig = Image.fromarray(img_orig)
     img_orig.save(save_loc+str(i)+"_"+str(j)+"_orig.png")
 
