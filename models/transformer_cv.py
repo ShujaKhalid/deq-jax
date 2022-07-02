@@ -72,15 +72,19 @@ class HeadSeg(hk.Module):
                                   kernel_shape=self.kernel_size,
                                   stride=1,
                                   padding=[0, 0])
-        # self.conv2d_2 = hk.Conv2D(32,
-        #                           kernel_shape=self.kernel_size,
-        #                           stride=1,
-        #                           padding=[10, 11])
+        self.conv2d_2 = hk.Conv2D(self.num_classes * 2,
+                                  kernel_shape=self.kernel_size,
+                                  stride=1,
+                                  padding=[1, 1])
         self.conv2d_3 = hk.Conv2D(self.num_classes,
                                   kernel_shape=1,
                                   stride=1,
-                                  padding=[16, 16])
+                                  padding=[0, 0])
         self.interp = Interpolate(scale_factor=32)
+        # self.interp = hk.Conv2DTranspose(self.num_classes,
+        #                                  kernel_shape=4,
+        #                                  stride=1,
+        #                                  output_shape=[1024, 2048])
         self.relu = jax.nn.relu
         self.sigmoid = jax.nn.sigmoid
 
@@ -88,16 +92,14 @@ class HeadSeg(hk.Module):
         #print("x.shape (before patchify): {}".format(x.shape))
         x = self.fc1(x)
         x = u.unpatchify(self.patch_size, x)
-        #print("x.shape (before conv2d_1): {}".format(x.shape))
-        #print("x (before conv2d_1): {}".format(x))
         x = self.conv2d_1(x)
-        # print("x.shape (before interp): {}".format(x.shape))
-        x = self.interp(x)  # replace with transConv if necessary
-        # print("x.shape (before conv2d_2): {}".format(x.shape))
-        #x = self.conv2d_2(x)
-        #print("x.shape (before conv2d_3): {}".format(x.shape))
+        x = self.relu(x)
+        x = self.conv2d_2(x)
         x = self.relu(x)
         x = self.conv2d_3(x)
+        x = self.relu(x)
+        print("x.shape: {}".format(x.shape))
+        x = self.interp(x)  # replace with transConv if necessary
         # print("x.shape (after conv2d_3): {}".format(x.shape))
         x = self.sigmoid(x)
         return x
