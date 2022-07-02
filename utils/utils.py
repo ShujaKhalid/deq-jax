@@ -114,10 +114,10 @@ def save_img_to_folder(i, config, x, y, y_hat):
 
     img_orig = (x[-1, :, :, :].transpose(1, 2, 0) * 255).astype(np.uint8)
     img_orig = Image.fromarray(img_orig)
-    img_orig.save(save_loc+str(i)+"_"+str(j)+"_orig.png")
+    img_orig.save(save_loc+str(i)+"_"+"_orig.png")
 
     # Print the results out class by class
-    for j in range(x.shape[0]):
+    for j in range(y.shape[-1]):
         img_seg = (np.asarray(y[-1, :, :, j]) * 255).astype(np.uint8)
         img_seg = Image.fromarray(img_seg)
         img_seg.save(save_loc+str(i)+"_"+str(j)+"_seg.png")
