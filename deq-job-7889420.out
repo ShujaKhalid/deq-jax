@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "train.py", line 41, in <module>
+    from utils.utils import evaluate_cls, evaluate_seg
+  File "/scratch/ssd002/home/skhalid/deq-jax/utils/utils.py", line 2, in <module>
+    from models.transformer_cv import HeadDepth
+  File "/scratch/ssd002/home/skhalid/deq-jax/models/transformer_cv.py", line 2, in <module>
+    import haiku as hk
+  File "/h/skhalid/.local/lib/python3.6/site-packages/haiku/__init__.py", line 17, in <module>
+    from haiku import data_structures
+  File "/h/skhalid/.local/lib/python3.6/site-packages/haiku/data_structures.py", line 17, in <module>
+    from haiku._src.data_structures import to_haiku_dict
+  File "/h/skhalid/.local/lib/python3.6/site-packages/haiku/_src/data_structures.py", line 30, in <module>
+    from haiku._src import utils
+  File "/h/skhalid/.local/lib/python3.6/site-packages/haiku/_src/utils.py", line 25, in <module>
+    import jax.numpy as jnp
+  File "/scratch/ssd001/home/skhalid/deq/jax/numpy/__init__.py", line 165, in <module>
+    core.getlimits._register_known_types()
+  File "/scratch/ssd001/home/skhalid/deq/jax/numpy/core/getlimits.py", line 108, in _register_known_types
+    eps=exp2(f16(-10)),
+TypeError: can only be called with ndarray object
