@@ -1,11 +1,12 @@
 {
     "mode": "seg",
     "logging": {
-        "log_every": 10,
+        "eval_every": 1,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\"]",
-        "log": "False"
+        "log": "False",
+        "log_every": 10
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",

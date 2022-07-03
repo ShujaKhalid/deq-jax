@@ -100,6 +100,7 @@ class HeadSeg(hk.Module):
         x = self.relu(x)
         x = self.interp(x)  # replace with transConv if necessary
         # print("x.shape (after conv2d_3): {}".format(x.shape))
+        x = self.relu(x)
         # x = self.sigmoid(x)
         return x
 
