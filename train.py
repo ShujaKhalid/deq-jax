@@ -42,13 +42,12 @@ from utils.utils import evaluate_cls, evaluate_seg
 from typing import Any, Mapping
 
 
-from absl import app
-from absl import flags
 from absl import logging
 
 # from examples.transformer import dataset
 # from examples.transformer import model
-from models import resnet, transformer_lm
+from utils.forward import Forward
+from utils.losses import Losses
 from utils.datasets import Datasets
 
 import jax
@@ -58,187 +57,8 @@ import numpy as np
 import jax.numpy as jnp
 import utils.dataset as dataset
 from utils.utils import logger
-from utils.utils import run
-from utils.utils import get_outputs
-from utils.utils import patchify
+from utils.utils import preproc
 # from tabulate import tabulate
-
-
-def build_forward_fn(vocab_size: int, d_model: int, num_heads: int,
-                     num_layers: int, dropout_rate: float):
-    """Create the model's forward pass."""
-
-    def forward_fn(data: Mapping[str, jnp.ndarray],
-                   is_training: bool = True) -> jnp.ndarray:
-        """Forward pass."""
-
-        if (config["mode"] == 'text'):
-            from models import transformer_lm
-            tokens = data['obs']
-            input_mask = jnp.greater(tokens, 0)
-            seq_length = tokens.shape[1]
-            vocab_size = tokens.shape[-1] * 2  # TODO-clean
-
-            # Embed the input tokens and positions.
-            embed_init = hk.initializers.TruncatedNormal(stddev=0.02)
-            token_embedding_map = hk.Embed(
-                vocab_size, d_model, w_init=embed_init)
-            token_embs = token_embedding_map(tokens)
-            positional_embeddings = hk.get_parameter(
-                'pos_embs', [seq_length, d_model], init=embed_init)
-            x = token_embs + positional_embeddings
-            # Run the transformer over the inputs.
-            # Transform the transformer
-            transformer = transformer_lm.Transformer(
-                num_heads=num_heads, num_layers=num_layers, dropout_rate=dropout_rate
-            )
-            transformer_pure = hk.transform(transformer)
-            z_star = run(config["deq_flag"] == "True", config["solver"], config["mode"], x,
-                         transformer_pure, input_mask, max_iter=10)
-
-            return hk.Linear(vocab_size)(z_star)
-
-            # TODO: Fix state_with_list updater - non-functional because
-            # updater needs to be passed downstream...
-        elif (config["mode"] == 'cls'):
-            x = data['obs'].astype('float32')
-            num_classes = config["num_classes"]
-
-            def resnet_fn(x, is_training):
-                model = resnet.ResNet18(
-                    num_classes=num_classes, resnet_v2=True)
-                return model(x, is_training=is_training)
-
-            transformer_cv = hk.transform_with_state(resnet_fn)
-            z_star = run(config["deq_flag"] == "True", config["solver"], config["mode"], x,
-                         transformer_cv, input_mask=None, max_iter=10)
-            return z_star
-        elif (config["mode"] == 'cls_trans'):
-            from models.transformer_cv import TransformerCV
-            x = data['obs'].astype('float32')
-            num_classes = config["num_classes"]
-            latent_dims = eval(config["model_attrs"]["latent_dims"])
-
-            def cls_fn(x, is_training):
-                # TODO: move to config
-                patch_size = config["model_attrs"]["patch_size"]
-                num_heads = config["model_attrs"]["num_heads"]
-                depth = config["model_attrs"]["depth"]
-                resample_dim = config["model_attrs"]["resample_dim"]
-                vit_mode = config["model_attrs"]["vit_mode"]
-                latent_dims = eval(config["model_attrs"]["latent_dims"])
-                model = TransformerCV(x.shape, patch_size, num_heads, num_classes,
-                                      depth, resample_dim, vit_mode, latent_dims=latent_dims)
-                return model(x)
-
-            transformer_seg = hk.transform(cls_fn)
-            z_star = run(config["deq_flag"] == "True", config["solver"], config["mode"], x,
-                         transformer_seg, input_mask=False, max_iter=10)
-
-            # Additional steps for downstream classification
-            z_star = get_outputs(
-                z_star,
-                mode="cls",
-                resample_dim=config["model_attrs"]["resample_dim"],
-                patch_size=config["model_attrs"]["patch_size"],
-                num_classes=num_classes)
-            return z_star
-
-        # TODO: Add fusion modeule or the like...
-        elif (config["mode"] == 'seg'):
-            from models.transformer_cv import TransformerCV
-            # print("data[\'obs\']: {}".format(data['obs']))
-            x = data['obs'].astype('float32')
-            num_classes = config["num_classes"]
-
-            def seg_fn(x, is_training):
-                # TODO: move to config
-                patch_size = config["model_attrs"]["patch_size"]
-                num_heads = config["model_attrs"]["num_heads"]
-                depth = config["model_attrs"]["depth"]
-                resample_dim = config["model_attrs"]["resample_dim"]
-                vit_mode = config["model_attrs"]["vit_mode"]
-                latent_dims = eval(config["model_attrs"]["latent_dims"])
-                model = TransformerCV(x.shape, patch_size, num_heads, num_classes,
-                                      depth, resample_dim, vit_mode, latent_dims=latent_dims)
-                return model(x)
-
-            transformer_seg = hk.transform(seg_fn)
-            z_star = run(config, x,
-                         transformer_seg, input_mask=False, max_iter=10)
-            # Additional steps for downstream segmentation
-            # config["mode"] = "seg_head"
-            # print("z_star: {}".format(z_star))
-
-            # transformer_seg_out = hk.transform(get_outputs)
-            # z_star = run(config, z_star,
-            #              transformer_seg_out, input_mask=False, max_iter=10)
-            # print("z_star: {}".format(z_star))
-            # z_star = get_outputs(
-            #     z_star,
-            #     mode="seg",
-            #     resample_dim=config["model_attrs"]["resample_dim"],
-            #     patch_size=config["model_attrs"]["patch_size"],
-            #     num_classes=num_classes)
-            return z_star
-
-    return forward_fn
-
-
-def lm_loss_fn(forward_fn,
-               vocab_size: int,
-               params,
-               rng,
-               data: Mapping[str, jnp.ndarray],
-               is_training: bool = True) -> jnp.ndarray:
-    """Compute the loss on data wrt params."""
-    logits = forward_fn(params, rng, data, is_training)
-    targets = jax.nn.one_hot(data['target'], vocab_size)
-    print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
-    assert logits.shape == targets.shape
-
-    mask = jnp.greater(data['obs'], 0)
-    loss = jnp.sum(-jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1))
-    loss = jnp.sum(loss * mask) / jnp.sum(mask)
-    return loss
-
-
-def vm_loss_fn(forward_fn,
-               classes: int,
-               params,
-               rng,
-               data: Mapping[str, jnp.ndarray],
-               is_training: bool = True) -> jnp.ndarray:
-    """Compute the loss on data wrt params."""
-    # print('data.shape: {}'.format(data))
-    logits = forward_fn(params, rng, data, is_training)
-    targets = jax.nn.one_hot(data['target'], classes)
-    print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
-    assert logits.shape == targets.shape
-    loss = jnp.sum(-jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1))
-
-    return loss
-
-
-# TODO: custom segmentation loss
-def seg_loss_fn(forward_fn,
-                classes: int,
-                params,
-                rng,
-                data: Mapping[str, jnp.ndarray],
-                is_training: bool = True) -> jnp.ndarray:
-    """Compute the loss on data wrt params."""
-    # print('data.shape: {}'.format(data))
-    logits = forward_fn(params, rng, data, is_training)
-    targets = jax.nn.one_hot(data['target'], classes)
-    #targets = data['target']
-    # print("targets.shape: {}".format(targets.shape))
-    # print("logits.shape: {}".format(logits.shape))
-    print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
-    assert logits.shape == targets.shape
-    loss = jnp.sum(-jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1))
-
-    return loss
 
 
 class Updater:
@@ -346,59 +166,29 @@ class CheckpointingUpdater:
         return state, out
 
 
-def preproc(x, config):
-    x = np.expand_dims(x, axis=3) if len(x.shape) == 3 else x
-    # TODO: fix
-    x = np.repeat(x, 3, axis=3) if x.shape[3] == 1 else x
-    if (x.shape[-1] == 3):
-        # shift c axis to the end
-        # [B, C, H, W] -> [B, H, W, C]
-        x = np.transpose(x, (0, 3, 1, 2))
-
-    # Change the format of the data
-    # from img -> img_patch
-    patch_size = config["model_attrs"]["patch_size"]
-    return patchify(patch_size, x)
-
-
 def main(config):
 
     config["checkpoint_dir"] = config["logdir"] + str(int(time.time())) + "/"
 
-    # Create the dataset.
-    if (config["mode"] == 'text'):
-        # TODO: move to datasets
-        train_dataset = dataset.AsciiDataset(
-            config['dataset_path']+'shakespeare.txt', config["batch_size"], config["sequence_length"])
-        vocab_size = train_dataset.vocab_size
-        # Set up the model, loss, and updater.
-        forward_fn = build_forward_fn(vocab_size, config["d_model"], config["num_heads"],
-                                      config["num_layers"], config["dropout_rate"])
-        forward_fn = hk.transform(forward_fn)
-        loss_fn = functools.partial(
-            lm_loss_fn, forward_fn.apply, vocab_size)
-    elif (config["mode"] == 'cls'):
-        forward_fn = build_forward_fn(config['num_classes'], config["d_model"], config["num_heads"],
-                                      config["num_layers"], config["dropout_rate"])
-        forward_fn = hk.transform(forward_fn)
-        loss_fn = functools.partial(
-            vm_loss_fn, forward_fn.apply, config['classes'])
-    elif (config["mode"] == 'cls_trans'):
-        forward_fn = build_forward_fn(config['num_classes'], config["d_model"], config["num_heads"],
-                                      config["num_layers"], config["dropout_rate"])
-        forward_fn = hk.transform(forward_fn)
-        loss_fn = functools.partial(
-            vm_loss_fn, forward_fn.apply, config['classes'])
-    elif (config["mode"] == 'seg'):
-        forward_fn = build_forward_fn(config['num_classes'], config["d_model"], config["num_heads"],
-                                      config["num_layers"], config["dropout_rate"])
-        forward_fn = hk.transform(forward_fn)
-        loss_fn = functools.partial(
-            seg_loss_fn, forward_fn.apply, config['num_classes'])
+    # Get the dataset in the required format
+    d = Datasets(config)
+    ds_dict = d.get_datasets()
+    print(ds_dict['ds_trn'])
+    print(ds_dict['ds_tst'])
 
+    # Setup the forward pass
+    build_forward_fn = Forward(config).build_forward_fn
+    forward_fn = hk.transform(build_forward_fn())
+
+    # Load loss function
+    loss_fn = Losses(config, forward_fn).get_loss_fn()
+
+    # Define optimizer
     optimizer = optax.chain(
         optax.clip_by_global_norm(config["grad_clip_value"]),
-        optax.adam(config["learning_rate"], b1=0.9, b2=0.99))
+        optax.adam(config["opt_params"]["learning_rate"],
+                   b1=config["opt_params"]["b1"],
+                   b2=config["opt_params"]["b2"]))
 
     updater = Updater(forward_fn.init, loss_fn, optimizer)
     updater = CheckpointingUpdater(updater, config["checkpoint_dir"])
@@ -410,10 +200,10 @@ def main(config):
 
     if (config["mode"] == 'text'):
         # TODO: Improve structure
-        data = next(train_dataset)
+        data = next(ds_dict['ds_trn'])
         state = updater.init(rng, data)
         for step in range(config["max_steps"]):
-            data = next(train_dataset)
+            data = next(ds_dict['ds_trn'])
             state, metrics = updater.update(state, data)
             # We use JAX runahead to mask data preprocessing and JAX dispatch overheads.
             # Using values from state/metrics too often will block the runahead and can
@@ -428,93 +218,7 @@ def main(config):
                     'steps_per_sec']
                 )
 
-    elif (config["mode"] == 'cls'):
-
-        # Get the dataset in the required format
-        d = Datasets(config)
-        ds_dict = d.get_datasets()
-        print(ds_dict['ds_trn'])
-        print(ds_dict['ds_tst'])
-
-        # Train the model
-        for epoch in range(config["epochs"]):
-            for step, (x, y) in enumerate(ds_dict['dl_trn']):
-                x = preproc(x, config)
-                # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
-                data = {'obs': x, 'target': y}
-                if (step < config["max_steps"]):
-                    if (epoch == 0 and step == 0):
-                        # Initialize state
-                        state = updater.init(rng, data)
-
-                    def accuracy(params, rng, x, y):
-                        target_class = jnp.argmax(y, axis=1)
-                        predicted_class = jnp.argmax(
-                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
-                        return jnp.mean(predicted_class == target_class)
-
-                    state, metrics = updater.update(state, data)
-
-                    # Training logs
-                    if step % config["log_every"] == 0:
-                        steps_per_sec = config["log_every"] / \
-                            (time.time() - prev_time)
-                        prev_time = time.time()
-                        metrics.update({'steps_per_sec': steps_per_sec})
-                        logger(metrics, order=[
-                               'step',
-                               'loss',
-                               'steps_per_sec']
-                               )
-
-            # ============================ Evaluation logs ===========================
-            evaluate_cls(rng, state, epoch, config, ds_dict, preproc, accuracy)
-            # ============================ Evaluation logs ===========================
-
-    elif (config["mode"] == 'cls_trans'):
-
-        # Get the dataset in the required format
-        d = Datasets(config)
-        ds_dict = d.get_datasets()
-        print(ds_dict['ds_trn'])
-        print(ds_dict['ds_tst'])
-
-        # Train the model
-        for epoch in range(config["epochs"]):
-            for step, (x, y) in enumerate(ds_dict['dl_trn']):
-                x = preproc(x, config)
-                # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
-                data = {'obs': x, 'target': y}
-                if (step < config["max_steps"]):
-                    if (epoch == 0 and step == 0):
-                        # Initialize state
-                        state = updater.init(rng, data)
-
-                    def accuracy(params, rng, x, y):
-                        target_class = jnp.argmax(y, axis=1)
-                        predicted_class = jnp.argmax(
-                            forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
-                        return jnp.mean(predicted_class == target_class)
-
-                    state, metrics = updater.update(state, data)
-
-                    # Training logs
-                    if step % config["log_every"] == 0:
-                        steps_per_sec = config["log_every"] / \
-                            (time.time() - prev_time)
-                        prev_time = time.time()
-                        metrics.update({'steps_per_sec': steps_per_sec})
-                        logger(metrics, order=[
-                            'step',
-                            'loss',
-                            'steps_per_sec'
-                        ])
-
-            # ============================ Evaluation logs ===========================
-            evaluate_cls(rng, state, epoch, config, ds_dict, preproc, accuracy)
-            # ============================ Evaluation logs ===========================
-
-    elif (config["mode"] == 'seg'):
+    else:
 
         # Get the dataset in the required format
         d = Datasets(config)
@@ -587,29 +291,6 @@ def main(config):
 
 if __name__ == '__main__':
     # TODO add to config file
-    # config = {
-    #     "dataset_path": "/home/skhalid/Documents/datalake/",
-    #     "dataset": "MNIST",  # ["ImageNet", "CIFAR10", "MNIST", "Cityscapes"]
-    #     "batch_size": 32,
-    #     "transform": None,
-    #     "n_threads": 1,
-    #     "log_every": 100,
-    #     "max_steps": 1000,
-    #     "deq_flag": False,
-    #     "solver": 0,  # {"0": "Broyden", "1": "Anderson", "2": "ETC"}
-    #     "log": False,
-    #     "mode": "seg",  # ["text", "cls", "seg"]
-    #     "epochs": 100,
-    #     "classes": 10,
-    #     "num_heads": 4,
-    #     "num_layers": 4,
-    #     "learning_rate": 3e-4,
-    #     "grad_clip_value": 1,
-    #     "dropout_rate": 0.1,
-    #     "d_model": 128,
-    #     "sequence_length": 64,
-    #     "checkpoint_dir": "/tmp/haiku-transformer",
-    #     "logdir": "./logs/"
 
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument(

@@ -1,33 +1,55 @@
 {
-    "dataset_path": "/home/skhalid/Documents/datalake/",
-    "dataset": "Cityscapes",
-    "batch_size": 6,
-    "transform": "None",
-    "n_threads": 1,
-    "log_every": 10,
-    "max_steps": 10000,
-    "deq_flag": "True",
-    "solver": 0,
-    "log": "False",
     "mode": "seg",
-    "epochs": 500,
-    "num_classes": 30,
-    "num_heads": 0,
-    "num_layers": 1,
-    "learning_rate": 3e-4,
-    "grad_clip_value": 1,
-    "dropout_rate": 0.1,
-    "d_model": 128,
-    "sequence_length": 64,
-    "checkpoint_dir": "/tmp/haiku-transformer",
-    "logdir": "./logs/",
-    "log_policy": "[\"valid\"]",
-    "model_attrs": {
-        "patch_size": 8,
-        "num_heads": 3,
-        "depth": 4,
-        "vit_mode": "seg",
-        "latent_dims": "[256, 256, 256]",
-        "resample_dim": 256
-    }
+    "logging": {
+        "log_every": 10,
+        "checkpoint_dir": "/tmp/haiku-transformer",
+        "logdir": "./logs/",
+        "log_policy": "[\"valid\"]",
+        "log": "False",
+    },
+    "data_params": {
+        "dataset_path": "/home/skhalid/Documents/datalake/",
+        "dataset": "Cityscapes",
+        "transform": "None",
+        "num_classes": 30,
+        "sequence_length": 64,
+    },
+    "deq_params": {
+        "deq_flag": "False",
+        "max_steps": 10000,
+        "max_iter": 10,
+        "solver": 0,
+    },
+    "model_params": {
+        "cv": {
+            "num_layers": 1,
+            "dropout_rate": 0.1,
+            "batch_size": 6,
+            "d_model": 128,
+            "patch_size": 8,
+            "num_heads": 3,
+            "depth": 4,
+            "latent_dims": "[256, 256, 256]",
+            "resample_dim": 256
+        },
+        "lm": {
+            "num_layers": 1,
+            "dropout_rate": 0.1,
+            "batch_size": 6,
+            "d_model": 128,
+            "patch_size": 8,
+            "num_heads": 3,
+            "depth": 4,
+            "latent_dims": "[256, 256, 256]",
+            "resample_dim": 256
+        }
+    },
+    "opt_params": {
+        "epochs": 500,
+        "grad_clip_value": 1,
+        "learning_rate": 0.00025,
+        "b1": 0.9,
+        "b2": 0.99
+    },
+    "n_threads": 1,
 }

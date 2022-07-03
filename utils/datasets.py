@@ -9,6 +9,8 @@ import torchvision.transforms as transforms
 import numpy as np
 import jax.numpy as jnp
 
+import utils.dataset as dataset
+
 torch.manual_seed(1993)
 
 CUSTOM_DATASETS = ['shakespeare_mini']
@@ -20,6 +22,8 @@ class Datasets():
         self.dataset_path = self.config['dataset_path']
         self.dataset_name = self.config['dataset']
         self.transform = config['transform']
+        self.batch_size = config["model_params"]["batch_size"]
+        self.sequence_length = config["data_params"]["sequence_length"]
         self.dataset_train = None
         self.dataset_test = None
         self.data_loader_train = None
@@ -124,7 +128,7 @@ class Datasets():
 
     def get_datasets(self):
         # Add new datasets to the schematic below.
-        if (self.dataset_name is not None):
+        if (self.dataset_name is not None and self.dataset_name not in CUSTOM_DATASETS):
             self.dataset_train = self.get_dataset(train=True)
             self.dataset_test = self.get_dataset(train=False)
             self.data_loader_train = self.get_dataloader(mode="train")
@@ -136,7 +140,10 @@ class Datasets():
         elif (self.dataset_name in CUSTOM_DATASETS):
             print("\nloading custom dataset\n")
             if (self.dataset_name == 'shakespear_mini'):
-                pass  # TODO
+                self.dataset_train = self.dataset_test = dataset.AsciiDataset(
+                    self.dataset_path+'shakespeare.txt',
+                    self.batch_size,
+                    self.sequence_length)
         else:
             raise Exception(
                 "Dataset not present in arsenal... Create schematic.")

@@ -55,59 +55,6 @@ def logger(data, order):
             msg + '  --- ', 'green', attrs=['bold'], end=' ')
 
 
-def evaluate_cls(rng, state, epoch, config, ds_dict, preproc, accuracy):
-    eval_trn = []
-    eval_tst = []
-    log_policy = eval(config["log_policy"])
-    if ("train" in log_policy):
-        for i, (x, y) in enumerate(tqdm(ds_dict['dl_trn'])):
-            x = preproc(x, config)
-            train_acc = accuracy(state['params'],
-                                 rng,
-                                 x,
-                                 jax.nn.one_hot(y, config["num_classes"]))
-            eval_trn.append(train_acc)
-    if ("valid" in log_policy):
-        for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
-            x = preproc(x, config)
-            test_acc = accuracy(state['params'],
-                                rng,
-                                x,
-                                jax.nn.one_hot(y, config["num_classes"]))
-            eval_tst.append(test_acc)
-            print("epoch: {} - iter: {} - acc_trn {:.2f} - acc_tst: {:.2f}".format(epoch, i,
-                                                                                   np.mean(eval_trn), np.mean(eval_tst)))
-
-
-def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, jaccard):
-    eval_trn = []
-    eval_tst = []
-    log_policy = eval(config["log_policy"])
-    if ("train" in log_policy):
-        for i, (x, y) in enumerate(tqdm(ds_dict['dl_trn'])):
-            x = preproc(x, config)
-            train_jac = jaccard(state['params'],
-                                rng,
-                                x,
-                                jax.nn.one_hot(y, config["num_classes"]))
-            eval_trn.append(train_jac)
-    if ("valid" in log_policy):
-        for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
-            # print("x (before preproc): {}".format(x))
-            # print("y: {}".format(y))
-            x_patch = jnp.array(preproc(x, config))
-            # print("np.unique(y): {}".format(np.unique(y)))
-            test_jac = jaccard(state['params'],
-                               rng,
-                               x_patch,
-                               x,
-                               jax.nn.one_hot(y, config["num_classes"]),
-                               functools.partial(save_img_to_folder, i))
-            eval_tst.append(test_jac)
-        print("epoch: {} - iter: {} - jac_trn {:.2f} - jac_tst: {:.2f}".format(epoch, i,
-                                                                               np.mean(eval_trn), np.mean(eval_tst)))
-
-
 def save_img_to_folder(i, config, x, y, y_hat):
     save_loc = config["checkpoint_dir"]
     #print("Saving to {}".format(save_loc+str(i)+"_pred.png"))
@@ -270,6 +217,21 @@ def qnm(fun, x, max_iter, eps, solver, mode, *args):
     )['result']
 
     return result_info
+
+
+def preproc(x, config):
+    x = np.expand_dims(x, axis=3) if len(x.shape) == 3 else x
+    # TODO: fix
+    x = np.repeat(x, 3, axis=3) if x.shape[3] == 1 else x
+    if (x.shape[-1] == 3):
+        # shift c axis to the end
+        # [B, C, H, W] -> [B, H, W, C]
+        x = np.transpose(x, (0, 3, 1, 2))
+
+    # Change the format of the data
+    # from img -> img_patch
+    patch_size = config["model_attrs"]["patch_size"]
+    return patchify(patch_size, x)
 
 
 def patchify(patch_size, x):
