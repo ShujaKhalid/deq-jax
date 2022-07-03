@@ -11,8 +11,9 @@
 
 . /etc/profile.d/lmod.sh
 . ../jax.env
-module use /pkgs/environment-modules/
-module load pytorch1.7.1-cuda11.0-python3.6
+#conda activate /scratch/ssd001/home/skhalid/jax
+#module use /pkgs/environment-modules/
+#module load pytorch1.7.1-cuda11.0-python3.6
 #./package_installer.sh
 
 # Run the job 
