@@ -2,6 +2,7 @@ import jax
 import functools
 from tqdm import tqdm
 import jax.numpy as jnp
+import numpy as np
 from utils.utils import save_img_to_folder
 
 
