@@ -1,10 +1,12 @@
+import jax
+import numpy as np
 import jax.numpy as jnp
 
 
 # Jaccard similarity
-def jaccard(params, rng, x_patch, x, y, save_img_to_folder, forward_fn):
+def jaccard(params, rng, x_patch, x, y, save_img_to_folder, forward_fn, config):
     y_hat = jax.jit(forward_fn.apply)(params, rng, data={
-        'obs': x_patch, 'target': y}, is_training=False)
+        'obs': x_patch, 'target': y})
     # print("x.shape: {}".format(x.shape))
     # print("y.shape: {}".format(y.shape))
     # print("y_hat.shape: {}".format(y_hat.shape))
@@ -24,5 +26,5 @@ def jaccard(params, rng, x_patch, x, y, save_img_to_folder, forward_fn):
 def accuracy(params, rng, x, y, forward_fn):
     target_class = jnp.argmax(y, axis=1)
     predicted_class = jnp.argmax(
-        forward_fn.apply(params, rng, data={'obs': x, 'target': y}, is_training=False), axis=1)
+        forward_fn.apply(params, rng, data={'obs': x, 'target': y}), axis=1)
     return jnp.mean(predicted_class == target_class)

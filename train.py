@@ -252,10 +252,10 @@ def main(config):
             # ============================ Evaluation logs ===========================
             if (config["mode"] == "cls" or config["mode"] == "cls_trans"):
                 evaluate_cls(rng, state, epoch, config,
-                             ds_dict, preproc, accuracy)
+                             ds_dict, preproc, functools.partial(accuracy, forward_fn=forward_fn))
             elif (config["mode"] == "seg"):
                 evaluate_seg(rng, state, epoch, config,
-                             ds_dict, preproc, jaccard)
+                             ds_dict, preproc, functools.partial(jaccard, forward_fn=forward_fn, config=config))
             else:
                 raise Exception(
                     "Incorrect mode selected... review configuration file")
