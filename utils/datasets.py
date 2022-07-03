@@ -19,11 +19,12 @@ CUSTOM_DATASETS = ['shakespeare_mini']
 class Datasets():
     def __init__(self, config: dict, transform=None):
         self.config = config
-        self.dataset_path = self.config['dataset_path']
-        self.dataset_name = self.config['dataset']
-        self.transform = config['transform']
-        self.batch_size = config["model_params"]["batch_size"]
-        self.sequence_length = config["data_params"]["sequence_length"]
+        self.dataset_path = self.config['data_attrs']['dataset_path']
+        self.dataset_name = self.config['data_attrs']['dataset']
+        self.transform = config['data_attrs']['transform']
+        self.batch_size = config["model_attrs"]["batch_size"]
+        self.sequence_length = config["model_attrs"]["lm"]["sequence_length"]
+        self.n_threads = self.config["n_threads"]
         self.dataset_train = None
         self.dataset_test = None
         self.data_loader_train = None
@@ -54,10 +55,10 @@ class Datasets():
                 return np.array(batch)
 
         return torch.utils.data.DataLoader(eval("self.dataset_"+mode),
-                                           batch_size=self.config["batch_size"],
+                                           batch_size=self.batch_size,
                                            shuffle=True,
                                            drop_last=True,
-                                           num_workers=self.config["n_threads"],
+                                           num_workers=self.n_threads,
                                            collate_fn=collate_numpy)
 
     def get_dataset(self, train):

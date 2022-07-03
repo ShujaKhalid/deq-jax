@@ -76,7 +76,7 @@ def save_img_to_folder(i, config, x, y, y_hat):
     return
 
 
-def run(config, x, model, input_mask, max_iter=10):
+def run(config, x, model):
     '''
     gen_stats:
     max_iter = 10
@@ -85,7 +85,7 @@ def run(config, x, model, input_mask, max_iter=10):
     if (config["mode"] == 'text'):
         rng = hk.next_rng_key()
         params = hk.experimental.lift(
-            model.init)(rng, x, input_mask, is_training=True)
+            model.init)(rng, x, is_training=True)
         # Define a callable function for ease of access downstream
         if (config["deq_flag"] == "True"):
             def f(params, rng, x, input_mask):
@@ -98,14 +98,11 @@ def run(config, x, model, input_mask, max_iter=10):
                 hk.next_rng_key(),
                 x,
                 f,
-                max_iter,
-                input_mask
-            )
+                max_iter=config["deq_attrs"]["max_iter"])
         else:
             z_star = model.apply(params,
                                  rng,
                                  x,
-                                 input_mask,
                                  is_training=True)
     elif (config["mode"] == 'cls'):
         # params, state = model.init(hk.next_rng_key(), x, is_training=True)
@@ -125,7 +122,7 @@ def run(config, x, model, input_mask, max_iter=10):
                 hk.next_rng_key(),
                 x,
                 f,
-                max_iter
+                max_iter=config["deq_attrs"]["max_iter"]
             )
         else:
             z_star, state = model.apply(params,
@@ -150,7 +147,7 @@ def run(config, x, model, input_mask, max_iter=10):
                 hk.next_rng_key(),
                 x,
                 f,
-                max_iter
+                max_iter=config["deq_attrs"]["max_iter"]
             )
         else:
             z_star = model.apply(params,
@@ -161,26 +158,25 @@ def run(config, x, model, input_mask, max_iter=10):
         # params, state = model.init(hk.next_rng_key(), x, is_training=True)
         rng = hk.next_rng_key()
         params = hk.experimental.lift(
-            model.init)(rng, x, is_training=True)
-        if (config["deq_flag"] == "True"):
+            model.init)(rng, x)
+        if (config["deq_attrs"]["deq_flag"] == "True"):
             # Define a callable function for ease of access downstream
             def f(params, state, rng, x):
                 return model.apply(params, state, rng, x)
 
             z_star = deq(
                 params,
-                config["solver"] == "",
+                config["deq_attrs"]["solver"] == "",
                 0 if config["mode"] == "text" else 1,
                 hk.next_rng_key(),
                 x,
                 f,
-                max_iter
+                max_iter=config["deq_attrs"]["max_iter"]
             )
         else:
             z_star = model.apply(params,
                                  None,
-                                 x,
-                                 is_training=True)
+                                 x)
 
         # Get the segmentation head
         def seg_head_fn(x, config):
@@ -230,7 +226,7 @@ def preproc(x, config):
 
     # Change the format of the data
     # from img -> img_patch
-    patch_size = config["model_attrs"]["patch_size"]
+    patch_size = config["model_attrs"]["cv"]["patch_size"]
     return patchify(patch_size, x)
 
 
@@ -264,9 +260,9 @@ def unpatchify(patch_size, patches):
 
 def get_outputs(x, config):
     mode = config["mode"]
-    resample_dim = config["model_attrs"]["resample_dim"]
-    patch_size = config["model_attrs"]["patch_size"]
-    num_classes = config["num_classes"]
+    resample_dim = config["model_attrs"]["cv"]["resample_dim"] if mode != "text" else config["model_attrs"]["lm"]["resample_dim"]
+    patch_size = config["model_attrs"]["cv"]["patch_size"]
+    num_classes = config["data_attrs"]["num_classes"]
 
     if (mode == "seg"):
         head_seg = HeadSeg(resample_dim, patch_size, num_classes)

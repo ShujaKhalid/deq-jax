@@ -38,7 +38,7 @@ import argparse
 import functools
 from tqdm import tqdm
 from tkinter import X
-from utils.utils import evaluate_cls, evaluate_seg
+from utils.evaluate import evaluate_cls, evaluate_seg
 from typing import Any, Mapping
 
 
@@ -49,6 +49,7 @@ from absl import logging
 from utils.forward import Forward
 from utils.losses import Losses
 from utils.datasets import Datasets
+from utils.metrics import jaccard, accuracy
 
 import jax
 import optax
@@ -58,7 +59,6 @@ import jax.numpy as jnp
 import utils.dataset as dataset
 from utils.utils import logger
 from utils.utils import preproc
-# from tabulate import tabulate
 
 
 class Updater:
@@ -168,11 +168,12 @@ class CheckpointingUpdater:
 
 def main(config):
 
-    config["checkpoint_dir"] = config["logdir"] + str(int(time.time())) + "/"
+    config["checkpoint_dir"] = config["logging"]["logdir"] + \
+        str(int(time.time())) + "/"
 
     # Get the dataset in the required format
-    d = Datasets(config)
-    ds_dict = d.get_datasets()
+    data = Datasets(config)
+    ds_dict = data.get_datasets()
     print(ds_dict['ds_trn'])
     print(ds_dict['ds_tst'])
 
@@ -185,10 +186,10 @@ def main(config):
 
     # Define optimizer
     optimizer = optax.chain(
-        optax.clip_by_global_norm(config["grad_clip_value"]),
-        optax.adam(config["opt_params"]["learning_rate"],
-                   b1=config["opt_params"]["b1"],
-                   b2=config["opt_params"]["b2"]))
+        optax.clip_by_global_norm(config["opt_attrs"]["grad_clip_value"]),
+        optax.adam(config["opt_attrs"]["learning_rate"],
+                   b1=config["opt_attrs"]["b1"],
+                   b2=config["opt_attrs"]["b2"]))
 
     updater = Updater(forward_fn.init, loss_fn, optimizer)
     updater = CheckpointingUpdater(updater, config["checkpoint_dir"])
@@ -219,20 +220,13 @@ def main(config):
                 )
 
     else:
-
-        # Get the dataset in the required format
-        d = Datasets(config)
-        ds_dict = d.get_datasets()
-        print(ds_dict['ds_trn'])
-        print(ds_dict['ds_tst'])
-
         # Train the model
-        for epoch in range(config["epochs"]):
+        for epoch in range(config["opt_attrs"]["epochs"]):
             for step, (x, y) in enumerate(ds_dict['dl_trn']):
                 x = preproc(x, config)
                 # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
                 data = {'obs': x, 'target': y}
-                if (step < config["max_steps"]):
+                if (step < config["opt_attrs"]["max_steps"]):
                     if (epoch == 0 and step == 0):
                         # Initialize state
                         state = updater.init(rng, data)
@@ -240,8 +234,8 @@ def main(config):
                     state, metrics = updater.update(state, data)
 
                     # Training logs
-                    if step % config["log_every"] == 0:
-                        steps_per_sec = config["log_every"] / \
+                    if step % config["logging"]["log_every"] == 0:
+                        steps_per_sec = config["logging"]["log_every"] / \
                             (time.time() - prev_time)
                         prev_time = time.time()
                         metrics.update({'steps_per_sec': steps_per_sec})
@@ -256,9 +250,15 @@ def main(config):
             # for j, k in ds_dict['dl_trn']:
             #     print(j)
             # ============================ Evaluation logs ===========================
-            print("Calling evaluate function...")
-            evaluate_seg(rng, state, epoch, config,
-                         ds_dict, preproc, jaccard)
+            if (config["mode"] == "cls" or config["mode"] == "cls_trans"):
+                evaluate_cls(rng, state, epoch, config,
+                             ds_dict, preproc, accuracy)
+            elif (config["mode"] == "seg"):
+                evaluate_seg(rng, state, epoch, config,
+                             ds_dict, preproc, jaccard)
+            else:
+                raise Exception(
+                    "Incorrect mode selected... review configuration file")
             # ============================ Evaluation logs ===========================
 
     return "Complete!"

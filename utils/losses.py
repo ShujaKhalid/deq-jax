@@ -5,10 +5,10 @@ from typing import Any, Mapping
 
 class Losses():
     def __init__(self, config, forward_fn):
-        super(self, Losses).__init__()
         self.config = config
         self.forward_fn = forward_fn
-        self.num_classes = self.config["data_params"]["num_classes"]
+        self.mode = self.config["mode"]
+        self.num_classes = self.config["data_attrs"]["num_classes"]
 
     def lm_loss_fn(self,
                    params,
@@ -44,11 +44,11 @@ class Losses():
     def seg_loss_fn(self,
                     params,
                     rng,
-                    data: Mapping[str, jnp.ndarray],
-                    is_training: bool = True) -> jnp.ndarray:
+                    data: Mapping[str, jnp.ndarray]
+                    ) -> jnp.ndarray:
         """Compute the loss on data wrt params."""
         # print('data.shape: {}'.format(data))
-        logits = self.forward_fn(params, rng, data, is_training)
+        logits = self.forward_fn.apply(params, rng, data)
         targets = jax.nn.one_hot(data['target'], self.num_classes)
         print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
         assert logits.shape == targets.shape

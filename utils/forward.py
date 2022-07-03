@@ -8,42 +8,37 @@ from utils.utils import run
 
 
 class Forward():
-    def __init__(self, config, data):
-        super(self, Forward).__init__()
+    def __init__(self, config):
         self.config = config
-        self.data = data
         self.mode = self.config["mode"]
-        self.deq_flag = self.config["deq_params"]["deq_flag"]
-        self.max_steps = self.config["deq_params"]["max_steps"]
-        self.solver = self.config["deq_params"]["solver"]
-        self.num_classes = self.config["data_params"]["num_classes"]
-        if (self.mode == "cv"):
-            self.num_layers = config["model_params"]["cv"]["num_layers"]
-            self.dropout_rate = config["model_params"]["cv"]["dropout_rate"]
-            self.batch_size = config["model_params"]["cv"]["batch_size"]
-            self.d_model = config["model_params"]["cv"]["d_model"]
-            self.patch_size = config["model_params"]["cv"]["patch_size"]
-            self.num_heads = config["model_params"]["cv"]["num_heads"]
-            self.depth = config["model_params"]["cv"]["depth"]
+        self.deq_flag = self.config["deq_attrs"]["deq_flag"]
+        self.solver = self.config["deq_attrs"]["solver"]
+        self.num_classes = self.config["data_attrs"]["num_classes"]
+        self.batch_size = config["model_attrs"]["batch_size"]
+        if (self.mode == "seg"):
+            self.num_layers = config["model_attrs"]["cv"]["num_layers"]
+            self.dropout_rate = config["model_attrs"]["cv"]["dropout_rate"]
+            self.d_model = config["model_attrs"]["cv"]["d_model"]
+            self.patch_size = config["model_attrs"]["cv"]["patch_size"]
+            self.num_heads = config["model_attrs"]["cv"]["num_heads"]
+            self.depth = config["model_attrs"]["cv"]["depth"]
             self.latent_dims = eval(
-                config["model_params"]["cv"]["latent_dims"])
-            self.resample_dim = config["model_params"]["cv"]["resample_dim"]
+                config["model_attrs"]["cv"]["latent_dims"])
+            self.resample_dim = config["model_attrs"]["cv"]["resample_dim"]
         elif (self.mode == "text"):
-            self.num_layers = config["model_params"]["lm"]["num_layers"]
-            self.dropout_rate = config["model_params"]["lm"]["dropout_rate"]
-            self.batch_size = config["model_params"]["lm"]["batch_size"]
-            self.d_model = config["model_params"]["lm"]["d_model"]
-            self.patch_size = config["model_params"]["lm"]["patch_size"]
-            self.num_heads = config["model_params"]["lm"]["num_heads"]
-            self.depth = config["model_params"]["lm"]["depth"]
+            self.num_layers = config["model_attrs"]["lm"]["num_layers"]
+            self.dropout_rate = config["model_attrs"]["lm"]["dropout_rate"]
+            self.d_model = config["model_attrs"]["lm"]["d_model"]
+            self.patch_size = config["model_attrs"]["lm"]["patch_size"]
+            self.num_heads = config["model_attrs"]["lm"]["num_heads"]
+            self.depth = config["model_attrs"]["lm"]["depth"]
             self.latent_dims = eval(
-                config["model_params"]["lm"]["latent_dims"])
-            self.resample_dim = config["model_params"]["lm"]["resample_dim"]
+                config["model_attrs"]["lm"]["latent_dims"])
+            self.resample_dim = config["model_attrs"]["lm"]["resample_dim"]
         else:
             raise Exception("Mode not supported, please review config file")
 
-    def forward_fn(self, data: Mapping[str, jnp.ndarray],
-                   is_training: bool = True) -> jnp.ndarray:
+    def forward_fn(self, data) -> jnp.ndarray:
         """Forward pass."""
 
         if (self.mode == 'text'):
@@ -100,6 +95,7 @@ class Forward():
                                       self.num_classes,
                                       self.depth,
                                       self.resample_dim,
+                                      self.mode,
                                       self.latent_dims)
                 return model(x)
 
@@ -121,6 +117,7 @@ class Forward():
                                       self.num_classes,
                                       self.depth,
                                       self.resample_dim,
+                                      self.mode,
                                       self.latent_dims)
                 return model(x)
 
@@ -131,4 +128,4 @@ class Forward():
 
     def build_forward_fn(self):
         """Create the model's forward pass."""
-        return self.forward_fn()
+        return self.forward_fn
