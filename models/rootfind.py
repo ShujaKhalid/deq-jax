@@ -53,7 +53,7 @@ def dumb_fwd(fun: Callable, max_iter: int, solver: int, mode: int, params: dict,
 def rootfind_bwd(fun, max_iter, solver, mode, res, grad):
     # returns dl/dz_star * J^(-1)_{g}
     (params, rng, z_star, *args) = res
-    (_, vjp_fun) = jax.vjp(fun, params, rng, z_star, *args)
+    (_, vjp_fun) = jax.vjp(fun, params, rng, z_star)
 
     def h_fun(x, args=None):
         #  J^(-1)_{g} x^T + (dl/dz_star)^T

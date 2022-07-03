@@ -94,7 +94,7 @@ def line_search(g: Callable, direction: jnp.ndarray, x0: jnp.ndarray, g0: jnp.nd
     """
     s = 1.0
     x_est = x0 + s * direction
-    g0_new = g(x_est, None)
+    g0_new = g(x_est)
     return x_est - x0, g0_new - g0
 
 
@@ -117,7 +117,7 @@ def broyden(g: Callable, x0: jnp.ndarray, max_iter: int, eps: float, *args) -> d
     Us = jnp.zeros((bsz, patches, feats, max_iter))
     VTs = jnp.zeros((bsz, max_iter, patches, feats))
 
-    gx = g(x0, None)  # (bsz, 2d, L')
+    gx = g(x0)  # (bsz, 2d, L')
     init_objective = jnp.linalg.norm(gx)
 
     # To be used in protective breaks
