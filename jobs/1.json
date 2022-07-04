@@ -10,12 +10,12 @@
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
-        "dataset": "Cityscapes",
+        "dataset": "VOCSegmentation",
         "transform": "None",
         "num_classes": 30
     },
     "deq_attrs": {
-        "deq_flag": "False",
+        "deq_flag": "True",
         "max_iter": 10,
         "solver": 0
     },
@@ -45,9 +45,9 @@
     },
     "opt_attrs": {
         "max_steps": 10000,
-        "epochs": 500,
+        "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.0005,
+        "learning_rate": 0.00025,
         "b1": 0.9,
         "b2": 0.99
     },

@@ -61,12 +61,13 @@ class HeadDepth(hk.Module):
 
 
 class HeadSeg(hk.Module):
-    def __init__(self, resample_dim, patch_size, num_classes=2):
+    def __init__(self, resample_dim, patch_size, config, num_classes=2):
         super(HeadSeg, self).__init__()
         self.resample_dim = resample_dim
         self.num_classes = num_classes
         self.kernel_size = 2
         self.patch_size = patch_size
+        self.dataset = config["data_attrs"]["dataset"]
         self.fc1 = hk.Linear(self.resample_dim)
         self.conv2d_1 = hk.Conv2D(self.resample_dim // 2,
                                   kernel_shape=self.kernel_size,
@@ -80,7 +81,10 @@ class HeadSeg(hk.Module):
                                   kernel_shape=1,
                                   stride=1,
                                   padding=[0, 0])
-        self.interp = Interpolate(scale_factor=32)
+        if (self.dataset == "VOCSegmentation"):
+            self.interp = Interpolate(scale_factor=8)
+        else:
+            self.interp = Interpolate(scale_factor=32)
         # self.interp = hk.Conv2DTranspose(self.num_classes,
         #                                  kernel_shape=4,
         #                                  stride=1,
@@ -90,18 +94,27 @@ class HeadSeg(hk.Module):
 
     def __call__(self, x):
         #print("x.shape (before patchify): {}".format(x.shape))
-        x = self.fc1(x)
-        x = u.unpatchify(self.patch_size, x)
-        x = self.conv2d_1(x)
-        x = self.relu(x)
-        x = self.conv2d_2(x)
-        x = self.relu(x)
-        x = self.conv2d_3(x)
-        x = self.relu(x)
-        x = self.interp(x)  # replace with transConv if necessary
-        # print("x.shape (after conv2d_3): {}".format(x.shape))
-        #x = self.relu(x)
-        #x = self.sigmoid(x)
+        if (self.dataset == "VOCSegmentation"):
+            x = self.fc1(x)
+            x = u.unpatchify(self.patch_size, x)
+            x = self.conv2d_1(x)
+            x = self.relu(x)
+            x = self.conv2d_2(x)
+            x = self.relu(x)
+            x = self.conv2d_3(x)
+            x = self.relu(x)
+            x = self.interp(x)  # replace with transConv if necessary
+        else:
+            x = self.fc1(x)
+            x = u.unpatchify(self.patch_size, x)
+            x = self.conv2d_1(x)
+            x = self.relu(x)
+            x = self.conv2d_2(x)
+            x = self.relu(x)
+            x = self.conv2d_3(x)
+            x = self.relu(x)
+            x = self.interp(x)  # replace with transConv if necessary
+
         return x
 
 # TODO [PanSeg update incoming...]
@@ -129,7 +142,8 @@ class TransformerCV(hk.Module):
                  depth,
                  resample_dim,
                  mode,
-                 latent_dims
+                 latent_dims,
+                 config
                  ):
         super(TransformerCV, self).__init__()
         self.x_size = x_size
@@ -139,6 +153,7 @@ class TransformerCV(hk.Module):
         self.depth = depth
         self.latent_dims = latent_dims
         self.mode = mode
+        self.dataset = config["data_attrs"]["dataset"]
         self.init = jax.nn.initializers.normal(stddev=1.0)
         self.resample_dim = resample_dim
         # self.head_seg = HeadSeg(self.resample_dim, self.num_classes)
@@ -188,7 +203,13 @@ class TransformerCV(hk.Module):
 
         # print("Before strip: {}".format(x.shape))
         # x = x[:, :49, :48]  # TODO: FIX...
-        x = x[:, :784, :192]  # TODO: FIX...
+        if (self.dataset == "Cityscapes"):
+            x = x[:, :784, :192]  # TODO: FIX...
+        elif (self.dataset == "VOCSegmentation"):
+            x = x[:, :2048, :192]  # TODO: FIX...
+        else:
+            raise Exception(
+                "DEQ dimensions not available for proposed dataset")
         # x = x[:, :16, :192]  # TODO: FIX...
 
         return x

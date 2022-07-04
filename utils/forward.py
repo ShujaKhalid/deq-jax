@@ -96,7 +96,8 @@ class Forward():
                                       self.depth,
                                       self.resample_dim,
                                       self.mode,
-                                      self.latent_dims)
+                                      self.latent_dims,
+                                      self.config)
                 return model(x)
 
             transformer_cls = hk.transform(cls_fn)
@@ -118,7 +119,8 @@ class Forward():
                                       self.depth,
                                       self.resample_dim,
                                       self.mode,
-                                      self.latent_dims)
+                                      self.latent_dims,
+                                      self.config)
                 return model(x)
 
             transformer_seg = hk.transform(seg_fn)
