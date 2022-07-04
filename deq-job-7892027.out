@@ -1,0 +1,30 @@
+Mon Jul  4 11:11:18 2022       
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 470.103.01   Driver Version: 470.103.01   CUDA Version: 11.4     |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|                               |                      |               MIG M. |
+|===============================+======================+======================|
+|   0  Quadro RTX 6000     On   | 00000000:2F:00.0 Off |                    0 |
+| N/A   28C    P8    21W / 250W |      0MiB / 22698MiB |      0%      Default |
+|                               |                      |                  N/A |
++-------------------------------+----------------------+----------------------+
+                                                                               
++-----------------------------------------------------------------------------+
+| Processes:                                                                  |
+|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+|        ID   ID                                                   Usage      |
+|=============================================================================|
+|  No running processes found                                                 |
++-----------------------------------------------------------------------------+
+nvcc: NVIDIA (R) Cuda compiler driver
+Copyright (c) 2005-2021 NVIDIA Corporation
+Built on Mon_May__3_19:15:13_PDT_2021
+Cuda compilation tools, release 11.3, V11.3.109
+Build cuda_11.3.r11.3/compiler.29920130_0
+Namespace(job_id='./jobs/vector/vector')
+Traceback (most recent call last):
+  File "/scratch/ssd002/home/skhalid/deq-jax/train.py", line 279, in <module>
+    config = json.load(open(args.job_id, "r"))
+FileNotFoundError: [Errno 2] No such file or directory: './jobs/vector/vector'
