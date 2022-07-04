@@ -9,12 +9,11 @@
 #SBATCH --job-name=deq
 #SBATCH --output=deq-job-%j.out
 
-nvidia-smi
-nvcc -V
 . /etc/profile.d/lmod.sh
 . ../jax.env
 #conda activate /scratch/ssd001/home/skhalid/jax
 
+CUDA_VER=cuda-11.0
 CUDNN_VER=cudnn-11.0-v8.0.5.39
 module use /pkgs/environment-modules/
 module --ignore-cache load $CUDA_VER
