@@ -9,12 +9,19 @@
 #SBATCH --job-name=deq
 #SBATCH --output=deq-job-%j.out
 
+nvidia-smi
+nvcc -V
 . /etc/profile.d/lmod.sh
 . ../jax.env
 #conda activate /scratch/ssd001/home/skhalid/jax
-#module use /pkgs/environment-modules/
-#module load pytorch1.7.1-cuda11.0-python3.6
-#./package_installer.sh
+
+CUDNN_VER=cudnn-11.0-v8.0.5.39
+module use /pkgs/environment-modules/
+module --ignore-cache load $CUDA_VER
+
+PATH=/pkgs/$CUDA_VER/bin:$PATH
+LD_LIBRARY_PATH=/pkgs/$CUDA_VER/lib64:/pkgs/$CUDNN_VER/lib64:/pkgs/nccl_2.8.4-1+cuda11.1_x86_64:$LD_LIBRARY_PATH
+
 
 # Run the job 
 python -W ignore train.py --job_id $1
