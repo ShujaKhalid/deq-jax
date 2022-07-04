@@ -45,7 +45,7 @@
     },
     "opt_attrs": {
         "max_steps": 10000,
-        "epochs": 20,
+        "epochs": 500,
         "grad_clip_value": 1,
         "learning_rate": 0.0005,
         "b1": 0.9,
