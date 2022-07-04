@@ -279,7 +279,7 @@ def get_outputs(x, config):
     num_classes = config["data_attrs"]["num_classes"]
 
     if (mode == "seg"):
-        head_seg = HeadSeg(resample_dim, patch_size, num_classes)
+        head_seg = HeadSeg(resample_dim, patch_size, config, num_classes)
         x = head_seg(x)
     elif (mode == "depth"):
         head_dep = HeadDepth(resample_dim, patch_size)

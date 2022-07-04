@@ -44,7 +44,7 @@ class Datasets():
 
     def get_dataloader(self, mode):
         def collate_numpy(batch):
-            # print([v[0].shape for v in batch])
+            # print([v[1].shape for v in batch])
 
             if isinstance(batch[0], np.ndarray):
                 return np.stack(batch)
@@ -63,17 +63,17 @@ class Datasets():
 
     def get_dataset(self, train):
         def make_jax_friendly_tgt(pic):
-            # transform_cityscapes_friendly = transforms.Compose(
-            #     # REALLY IMPORTANT TO NOT USE TOTENSOR HERE!!!
-            #     # This is a target mask...
-            #     [
-            #         transforms.ToTensor(),
-            #         # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
-            #         #     0.229, 0.224, 0.225])
-            #     ])
+            transform_cityscapes_friendly = transforms.Compose(
+                # REALLY IMPORTANT TO NOT USE TOTENSOR HERE!!!
+                # This is a target mask...
+                [
+                    transforms.Resize(512),
+                    transforms.CenterCrop((256, 512)),
+                    # transforms.ToTensor(),
+                ])
 
-            # if (self.dataset_name == "Cityscapes"):
-            #     pic = transform_cityscapes_friendly(pic)
+            if (self.dataset_name == "VOCSegmentation"):
+                pic = transform_cityscapes_friendly(pic)
             pic = np.array(pic)
             return np.array(pic, jnp.float32)
 
@@ -94,12 +94,37 @@ class Datasets():
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
                         0.229, 0.224, 0.225])
                 ])
+            # transform_kitti_friendly = transforms.Compose(
+            #     [
+            #         transforms.Resize(256),
+            #         transforms.CenterCrop(224),
+            #         transforms.ToTensor(),
+            #         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+            #             0.229, 0.224, 0.225])
+            #     ])
+            transform_voc_friendly = transforms.Compose(
+                [
+                    transforms.Resize(512),
+                    transforms.CenterCrop((256, 512)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                        0.229, 0.224, 0.225])
+                ])
 
             if (self.dataset_name == "ImageNet"):
                 pic = transform_imagenet_friendly(pic)
 
             if (self.dataset_name == "Cityscapes"):
                 pic = transform_cityscapes_friendly(pic)
+
+            # Only setup for detection
+            # if (self.dataset_name == "Kitti"):
+            #     pic = transform_kitti_friendly(pic)
+            #     print(pic.shape)
+
+            if (self.dataset_name == "VOCSegmentation"):
+                pic = transform_voc_friendly(pic)
+
             return np.array(pic, jnp.float32)
 
         if not self.dataset_name:
@@ -118,6 +143,25 @@ class Datasets():
                 mode="fine",
                 # ["instance", "semantic", "polygon", "color"]
                 target_type="semantic",
+                transform=make_jax_friendly,
+                target_transform=make_jax_friendly_tgt)
+        elif (self.dataset_name == "Kitti"):
+            return getattr(torchvision.datasets, self.dataset_name)(
+                root=self.dataset_path+"kitti",
+                train=True if train else False,
+                # ["coarse", "fine"]
+                # mode="fine",
+                # ["instance", "semantic", "polygon", "color"]
+                # target_type="semantic",
+                download=True,
+                transform=make_jax_friendly,
+                target_transform=make_jax_friendly_tgt)
+        elif (self.dataset_name == "VOCSegmentation"):
+            return getattr(torchvision.datasets, self.dataset_name)(
+                root=self.dataset_path+"voc",
+                image_set="train" if train else "val",
+                year="2012",
+                download=True,
                 transform=make_jax_friendly,
                 target_transform=make_jax_friendly_tgt)
         else:
