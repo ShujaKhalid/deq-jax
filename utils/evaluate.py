@@ -40,7 +40,7 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, jaccard):
             train_jac = jaccard(state['params'],
                                 rng,
                                 x,
-                                jax.nn.one_hot(y, config["data_attrs"]["num_classes"]))
+                                y)
             eval_trn.append(train_jac)
     if ("valid" in log_policy):
         for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
@@ -52,8 +52,7 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, jaccard):
                                rng,
                                x_patch,
                                x,
-                               jax.nn.one_hot(
-                                   y, config["data_attrs"]["num_classes"]),
+                               y,
                                functools.partial(save_img_to_folder, i))
             eval_tst.append(test_jac)
         print("epoch: {} - iter: {} - jac_trn {:.2f} - jac_tst: {:.2f}".format(epoch, i,

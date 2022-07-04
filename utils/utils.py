@@ -64,14 +64,28 @@ def save_img_to_folder(i, config, x, y, y_hat):
     img_orig.save(save_loc+str(i)+"_orig.png")
 
     # Print the results out class by class
-    for j in range(y.shape[-1]):
-        img_seg = (np.asarray(y[-1, :, :, j]) * 255).astype(np.uint8)
-        img_seg = Image.fromarray(img_seg)
-        img_seg.save(save_loc+str(i)+"_"+str(j)+"_seg.png")
+    if (len(y.shape) == 4):
+        for j in range(y.shape[-1]):
+            img_seg = (np.asarray(y[-1, :, :, j]) * 255).astype(np.uint8)
+            img_seg = Image.fromarray(img_seg)
+            img_seg.save(save_loc+str(i)+"_"+str(j)+"_seg.png")
 
-        img_pred = (np.asarray(y_hat[-1, :, :, j]) * 255).astype(np.uint8)
+            img_pred = (np.asarray(y_hat[-1, :, :, j]) * 255).astype(np.uint8)
+            img_pred = Image.fromarray(img_pred)
+            img_pred.save(save_loc+str(i)+"_"+str(j)+"_pred.png")
+    else:
+        img_seg = (np.asarray(y[-1, :, :]) * 255).astype(np.uint8)
+        print("img_seg_pre: {}".format(np.unique(np.asarray(y[-1, :, :]))))
+        print("img_seg: {}".format(np.unique(img_seg)))
+        img_seg = Image.fromarray(img_seg)
+        img_seg.save(save_loc+str(i)+"_seg.png")
+
+        img_pred = (np.asarray(y_hat[-1, :, :]) * 255).astype(np.uint8)
+        print("img_pred_pre: {}".format(
+            np.unique(np.asarray(y_hat[-1, :, :]))))
+        print("img_pred: {}".format(np.unique(img_pred)))
         img_pred = Image.fromarray(img_pred)
-        img_pred.save(save_loc+str(i)+"_"+str(j)+"_pred.png")
+        img_pred.save(save_loc+str(i)+"_pred.png")
 
     return
 

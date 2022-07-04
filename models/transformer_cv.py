@@ -72,7 +72,7 @@ class HeadSeg(hk.Module):
                                   kernel_shape=self.kernel_size,
                                   stride=1,
                                   padding=[0, 0])
-        self.conv2d_2 = hk.Conv2D(self.num_classes * 2,
+        self.conv2d_2 = hk.Conv2D(self.resample_dim // 4,
                                   kernel_shape=self.kernel_size,
                                   stride=1,
                                   padding=[1, 1])
@@ -100,7 +100,8 @@ class HeadSeg(hk.Module):
         x = self.relu(x)
         x = self.interp(x)  # replace with transConv if necessary
         # print("x.shape (after conv2d_3): {}".format(x.shape))
-        # x = self.sigmoid(x)
+        #x = self.relu(x)
+        #x = self.sigmoid(x)
         return x
 
 # TODO [PanSeg update incoming...]

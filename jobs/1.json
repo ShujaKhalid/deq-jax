@@ -1,11 +1,12 @@
 {
     "mode": "seg",
     "logging": {
-        "log_every": 10,
+        "eval_every": 10,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\"]",
-        "log": "False"
+        "log": "False",
+        "log_every": 10
     },
     "data_attrs": {
         "dataset_path": "/scratch/ssd002/home/skhalid/",
@@ -26,7 +27,7 @@
             "d_model": 128,
             "patch_size": 8,
             "num_heads": 3,
-            "depth": 4,
+            "depth": 1,
             "latent_dims": "[256, 256, 256]",
             "resample_dim": 256
         },
@@ -43,10 +44,10 @@
         }
     },
     "opt_attrs": {
-        "max_steps": 2,
-        "epochs": 500,
+        "max_steps": 10000,
+        "epochs": 20,
         "grad_clip_value": 1,
-        "learning_rate": 0.00025,
+        "learning_rate": 0.0005,
         "b1": 0.9,
         "b2": 0.99
     },

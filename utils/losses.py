@@ -48,13 +48,30 @@ class Losses():
                     ) -> jnp.ndarray:
         """Compute the loss on data wrt params."""
         # print('data.shape: {}'.format(data))
-        logits = self.forward_fn.apply(params, rng, data)
+        #logits = self.forward_fn.apply(params, rng, data)
+        logits = jax.nn.log_softmax(
+            self.forward_fn.apply(params, rng, data), axis=-1)
         targets = jax.nn.one_hot(data['target'], self.num_classes)
+
+        # checks
         print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
         assert logits.shape == targets.shape
-        loss = jnp.sum(-jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1))
 
-        return loss
+        # dice loss
+        xt = logits != 0
+        yt = targets != 0
+        num = jnp.sum(jnp.logical_xor(
+            xt, yt).astype(jnp.int32))
+        denom = jnp.sum(jnp.logical_or(jnp.logical_and(
+            xt, yt), jnp.logical_xor(xt, yt)).astype(jnp.int32))
+        dice_loss = 1-jnp.where(denom == 0, 0.0,
+                                num.astype(jnp.float32) / denom)
+
+        # ce loss
+        ce_loss = jnp.sum(-jnp.sum(targets * logits, axis=-1))
+        #l2_loss = -jnp.sum(logits - targets)
+
+        return ce_loss
 
     def get_loss_fn(self):
         if (self.mode == "text"):
