@@ -48,7 +48,7 @@ class Losses():
                     ) -> jnp.ndarray:
         """Compute the loss on data wrt params."""
         # print('data.shape: {}'.format(data))
-        logits = jax.nn.softmax(
+        logits = jax.nn.log_softmax(
             self.forward_fn.apply(params, rng, data), axis=-1)
         targets = jax.nn.one_hot(data['target'], self.num_classes)
 

@@ -44,10 +44,10 @@
         }
     },
     "opt_attrs": {
-        "max_steps": 2,
-        "epochs": 500,
+        "max_steps": 1000,
+        "epochs": 20,
         "grad_clip_value": 1,
-        "learning_rate": 0.00025,
+        "learning_rate": 0.025,
         "b1": 0.9,
         "b2": 0.99
     },
