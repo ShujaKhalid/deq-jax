@@ -3,7 +3,7 @@ import haiku as hk
 import numpy as np
 import jax.numpy as jnp
 
-from models.architectures.layers import Transformer
+from models.architectures.layers import Transformer as Backbone
 import utils.utils as u
 
 
@@ -185,8 +185,8 @@ class Transformer(hk.Module):
         embed = self.fc(x)
         x = jnp.concatenate([self.tokens_cls, embed], axis=1)
         x += self.embed_pos
-        x = Transformer(self.depth, self.num_heads,
-                        self.latent_dims[1])(x)
+        x = Backbone(self.depth, self.num_heads,
+                     self.latent_dims[1])(x)
 
         # print("Before strip: {}".format(x.shape))
         # x = x[:, :49, :48]  # TODO: FIX...

@@ -170,6 +170,7 @@ def main(config):
         str(int(time.time())) + "/"
 
     # Save a snapshot of the code to the checkpoint directory
+    os.system("mkdir -p "+config["checkpoint_dir"])
     os.system("cp -pr ./models ./solvers ./utils " + config["job"] + " " +
               config["checkpoint_dir"])
 
