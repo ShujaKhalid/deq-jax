@@ -37,14 +37,16 @@ def jaccard(params, rng, x_patch, x, y, save_img_to_folder, forward_fn, config):
         jaccard_classwise = {v: np.sum(jaccard_matrix[:, v])/(y_rsp.shape[0])
                              for v in range(jaccard_matrix.shape[-1])}
         print("jaccard_classwise: {}".format(jaccard_classwise))
-        jaccard_overall = np.mean(list(jaccard_classwise.values()))
+        jaccard_overall = np.mean(
+            [v for v in list(jaccard_classwise.values()) if v != 0.0])
         print("jaccard_overall: {}".format(jaccard_overall))
 
         # Dice Coefficient
         dice_classwise = {v: 2*np.sum(n[:, v])/(y_rsp[:, v].sum()+logits_rsp[:, v].sum())
                           for v in range(jaccard_matrix.shape[-1])}
         print("dice_classwise: {}".format(dice_classwise))
-        dice_overall = np.mean(list(dice_classwise.values()))
+        dice_overall = np.mean(
+            [v for v in list(dice_classwise.values()) if v != 0.0])
         print("dice_overall: {}".format(dice_overall))
 
     else:

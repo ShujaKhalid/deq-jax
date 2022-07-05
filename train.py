@@ -135,9 +135,7 @@ class CheckpointingUpdater:
         """Initialize experiment state."""
         if not os.path.exists(self._checkpoint_dir) or not self._checkpoint_paths():
             os.makedirs(self._checkpoint_dir, exist_ok=True)
-            # Save a snapshot of the code to the checkpoint directory
-            os.system("cp -pr ./models ./solvers ./utils " +
-                      config["checkpoint_dir"])
+
             return self._inner.init(rng, data)
         else:
             checkpoint = os.path.join(self._checkpoint_dir,
@@ -170,6 +168,10 @@ def main(config):
 
     config["checkpoint_dir"] = config["logging"]["logdir"] + \
         str(int(time.time())) + "/"
+
+    # Save a snapshot of the code to the checkpoint directory
+    os.system("cp -pr ./models ./solvers ./utils " + config["job"] + " " +
+              config["checkpoint_dir"])
 
     # Get the dataset in the required format
     data = Datasets(config)
@@ -274,6 +276,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
     config = json.load(open(args.job_id, "r"))
+    config["job"] = args.job_id
 
     out = json.dumps(config, indent=4, sort_keys=True)
     print(out)

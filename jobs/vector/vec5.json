@@ -10,9 +10,9 @@
     },
     "data_attrs": {
         "dataset_path": "/scratch/ssd002/home/skhalid/",
-        "dataset": "Cityscapes",
+        "dataset": "VOCSegmentation",
         "transform": "None",
-        "num_classes": 30
+        "num_classes": 20
     },
     "deq_attrs": {
         "deq_flag": "False",
@@ -22,6 +22,7 @@
     "model_attrs": {
         "batch_size": 6,
         "cv": {
+            "arch": "deqformer",
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
@@ -32,6 +33,7 @@
             "resample_dim": 256
         },
         "lm": {
+            "arch": "deqformer",
             "sequence_length": 64,
             "num_layers": 1,
             "dropout_rate": 0.1,

@@ -16,27 +16,47 @@ class Forward():
         self.num_classes = self.config["data_attrs"]["num_classes"]
         self.batch_size = config["model_attrs"]["batch_size"]
         if (self.mode == "seg"):
-            self.num_layers = config["model_attrs"]["cv"]["num_layers"]
-            self.dropout_rate = config["model_attrs"]["cv"]["dropout_rate"]
-            self.d_model = config["model_attrs"]["cv"]["d_model"]
-            self.patch_size = config["model_attrs"]["cv"]["patch_size"]
-            self.num_heads = config["model_attrs"]["cv"]["num_heads"]
-            self.depth = config["model_attrs"]["cv"]["depth"]
+            self.num_layers = self.config["model_attrs"]["cv"]["num_layers"]
+            self.dropout_rate = self.config["model_attrs"]["cv"]["dropout_rate"]
+            self.d_model = self.config["model_attrs"]["cv"]["d_model"]
+            self.patch_size = self.config["model_attrs"]["cv"]["patch_size"]
+            self.num_heads = self.config["model_attrs"]["cv"]["num_heads"]
+            self.depth = self.config["model_attrs"]["cv"]["depth"]
             self.latent_dims = eval(
-                config["model_attrs"]["cv"]["latent_dims"])
-            self.resample_dim = config["model_attrs"]["cv"]["resample_dim"]
+                self.config["model_attrs"]["cv"]["latent_dims"])
+            self.resample_dim = self.config["model_attrs"]["cv"]["resample_dim"]
         elif (self.mode == "text"):
-            self.num_layers = config["model_attrs"]["lm"]["num_layers"]
-            self.dropout_rate = config["model_attrs"]["lm"]["dropout_rate"]
-            self.d_model = config["model_attrs"]["lm"]["d_model"]
-            self.patch_size = config["model_attrs"]["lm"]["patch_size"]
-            self.num_heads = config["model_attrs"]["lm"]["num_heads"]
-            self.depth = config["model_attrs"]["lm"]["depth"]
+            self.num_layers = self.config["model_attrs"]["lm"]["num_layers"]
+            self.dropout_rate = self.config["model_attrs"]["lm"]["dropout_rate"]
+            self.d_model = self.config["model_attrs"]["lm"]["d_model"]
+            self.patch_size = self.config["model_attrs"]["lm"]["patch_size"]
+            self.num_heads = self.config["model_attrs"]["lm"]["num_heads"]
+            self.depth = self.config["model_attrs"]["lm"]["depth"]
             self.latent_dims = eval(
-                config["model_attrs"]["lm"]["latent_dims"])
-            self.resample_dim = config["model_attrs"]["lm"]["resample_dim"]
+                self.config["model_attrs"]["lm"]["latent_dims"])
+            self.resample_dim = self.config["model_attrs"]["lm"]["resample_dim"]
         else:
             raise Exception("Mode not supported, please review config file")
+
+        # Load only the required model configuration
+        self.model_attrs = self.config["model_attrs"]["cv"] \
+            if self.mode != "text" \
+            else self.config["model_attrs"]["lm"]
+        if (self.model_attrs["arch"] == "deqformer"):
+            from models.architectures.deqformer import Transformer
+            self.model = Transformer
+        elif (self.model_attrs["arch"] == "mdeqformer"):
+            from models.architectures.mdeqformer import Transformer
+            self.model = Transformer
+        # elif (self.model_attrs["arch"] == "swin"):
+        #     from models.architectures.swin import Transformer
+        #     self.model = Transformer
+        # elif (self.model_attrs["arch"] == "cait"):
+        #     from models.architectures.cait import Transformer
+        #     self.model = Transformer
+        # elif (self.model_attrs["arch"] == "segformer"):
+        #     from models.architectures.segformer import Transformer
+        #     self.model = Transformer
 
     def forward_fn(self, data) -> jnp.ndarray:
         """Forward pass."""
@@ -85,19 +105,19 @@ class Forward():
                          transformer_cv)
             return z_star
         elif (self.mode == 'cls_trans'):
-            from models.transformer_cv import TransformerCV
+
             x = data['obs'].astype('float32')
 
             def cls_fn(x):
-                model = TransformerCV(x.shape,
-                                      self.patch_size,
-                                      self.num_heads,
-                                      self.num_classes,
-                                      self.depth,
-                                      self.resample_dim,
-                                      self.mode,
-                                      self.latent_dims,
-                                      self.config)
+                model = self.model(x.shape,
+                                   self.patch_size,
+                                   self.num_heads,
+                                   self.num_classes,
+                                   self.depth,
+                                   self.resample_dim,
+                                   self.mode,
+                                   self.latent_dims,
+                                   self.config)
                 return model(x)
 
             transformer_cls = hk.transform(cls_fn)
@@ -107,20 +127,19 @@ class Forward():
 
         # TODO: Add fusion modeule or the like...
         elif (self.mode == 'seg'):
-            from models.transformer_cv import TransformerCV
 
             x = data['obs'].astype('float32')
 
             def seg_fn(x):
-                model = TransformerCV(x.shape,
-                                      self.patch_size,
-                                      self.num_heads,
-                                      self.num_classes,
-                                      self.depth,
-                                      self.resample_dim,
-                                      self.mode,
-                                      self.latent_dims,
-                                      self.config)
+                model = self.model(x.shape,
+                                   self.patch_size,
+                                   self.num_heads,
+                                   self.num_classes,
+                                   self.depth,
+                                   self.resample_dim,
+                                   self.mode,
+                                   self.latent_dims,
+                                   self.config)
                 return model(x)
 
             transformer_seg = hk.transform(seg_fn)

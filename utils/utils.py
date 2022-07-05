@@ -1,6 +1,6 @@
 from pickletools import uint8
-from models.transformer_cv import HeadDepth
-from models.transformer_cv import HeadSeg
+from models.architectures.deqformer import HeadDepth
+from models.architectures.deqformer import HeadSeg
 import jax
 import numpy as np
 import haiku as hk
@@ -12,7 +12,6 @@ from tabulate import tabulate
 from termcolor import cprint
 from models.deq import deq
 from PIL import Image
-import functools
 
 
 class NumpyLoader(data.DataLoader):

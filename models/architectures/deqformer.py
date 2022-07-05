@@ -3,7 +3,7 @@ import haiku as hk
 import numpy as np
 import jax.numpy as jnp
 
-from models.layers import Transformer
+from models.architectures.layers import Transformer
 import utils.utils as u
 
 
@@ -133,7 +133,7 @@ class HeadSeg(hk.Module):
 #     return x
 
 
-class TransformerCV(hk.Module):
+class Transformer(hk.Module):
     def __init__(self,
                  x_size,
                  patch_size,
@@ -145,7 +145,7 @@ class TransformerCV(hk.Module):
                  latent_dims,
                  config
                  ):
-        super(TransformerCV, self).__init__()
+        super(Transformer, self).__init__()
         self.x_size = x_size
         self.patch_size = patch_size
         self.num_heads = num_heads
@@ -182,19 +182,6 @@ class TransformerCV(hk.Module):
             output seg: generated segmentation
         """
 
-        # The embedding is incomplete, let's add the following:
-        # - class tokens
-        # - positional embeddings
-        # input = x.reshape(self.bsz, self.cnl, self.hgt, self.wdt)
-        # self.patches_qty = (self.hgt*self.wdt)//(self.patch_size *
-        #                                          self.patch_size)
-        # self.patches_dim = self.cnl*self.patch_size**2
-        # patch = input.reshape(self.bsz, self.patches_qty, self.patches_dim)
-        # # print("input.shape: {}".format(input.shape))
-        # # print("patches_qty.shape: {}".format(input.shape))
-        # # print("self.tokens_cls.shape: {}".format(self.tokens_cls.shape))
-        # # print("self.embed_pos.shape: {}".format(self.embed_pos.shape))
-        # Convert patch to fixed len embedding
         embed = self.fc(x)
         x = jnp.concatenate([self.tokens_cls, embed], axis=1)
         x += self.embed_pos
