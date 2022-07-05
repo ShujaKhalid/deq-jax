@@ -1,0 +1,55 @@
+{
+    "mode": "seg",
+    "logging": {
+        "eval_every": 50,
+        "checkpoint_dir": "/tmp/haiku-transformer",
+        "logdir": "./logs/",
+        "log_policy": "[\"valid\"]",
+        "log": "False",
+        "log_every": 10
+    },
+    "data_attrs": {
+        "dataset_path": "/scratch/ssd002/home/skhalid/",
+        "dataset": "Cityscapes",
+        "transform": "None",
+        "num_classes": 30
+    },
+    "deq_attrs": {
+        "deq_flag": "False",
+        "max_iter": 10,
+        "solver": 0
+    },
+    "model_attrs": {
+        "batch_size": 6,
+        "cv": {
+            "num_layers": 1,
+            "dropout_rate": 0.1,
+            "d_model": 128,
+            "patch_size": 8,
+            "num_heads": 3,
+            "depth": 6,
+            "latent_dims": "[256, 256, 256]",
+            "resample_dim": 256
+        },
+        "lm": {
+            "sequence_length": 64,
+            "num_layers": 1,
+            "dropout_rate": 0.1,
+            "d_model": 128,
+            "patch_size": 8,
+            "num_heads": 3,
+            "depth": 4,
+            "latent_dims": "[256, 256, 256]",
+            "resample_dim": 256
+        }
+    },
+    "opt_attrs": {
+        "max_steps": 10000,
+        "epochs": 10000,
+        "grad_clip_value": 1,
+        "learning_rate": 0.00025,
+        "b1": 0.9,
+        "b2": 0.99
+    },
+    "n_threads": 1
+}
