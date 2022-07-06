@@ -30,7 +30,7 @@
             "patch_size": 32,
             "num_heads": 3,
             "depth": 1,
-            "latent_dims": "[256, 256, 256]",
+            "latent_dims": "[3072, 3072, 3072]",
             "resample_dim": 1024
         },
         "lm": {

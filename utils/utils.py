@@ -279,7 +279,7 @@ def unpatchify(patches):
     # #cnl = patches_dim / patch_size**2
     # cnl = (patches_qty * patches_dim) // (hgt * wdt)
     # x = patches.reshape(bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
-    patches = patches[:, :-1, :]
+    patches = patches[:, :, :]
     bsz, patches_qty, patches_dim = patches.shape
     # TODO: arbitrarily set - specifically for Cityscapes...
     # base_factor = 2

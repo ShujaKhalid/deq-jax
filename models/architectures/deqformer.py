@@ -82,9 +82,9 @@ class HeadSeg(hk.Module):
                                   stride=1,
                                   padding=[0, 0])
         if (self.dataset == "VOCSegmentation"):
-            self.interp = Interpolate(scale_factor=8)
+            self.interp = Interpolate(scale_factor=4)
         else:
-            self.interp = Interpolate(scale_factor=32)
+            self.interp = Interpolate(scale_factor=16)
         # self.interp = hk.Conv2DTranspose(self.num_classes,
         #                                  kernel_shape=4,
         #                                  stride=1,
@@ -191,9 +191,9 @@ class Transformer(hk.Module):
         # print("Before strip: {}".format(x.shape))
         # x = x[:, :49, :48]  # TODO: FIX...
         if (self.dataset == "Cityscapes"):
-            x = x[:, :784, :192]  # TODO: FIX...
+            x = x[:, :128, :3072]  # TODO: FIX...
         elif (self.dataset == "VOCSegmentation"):
-            x = x[:, :2048, :192]  # TODO: FIX...
+            x = x[:, :128, :3072]  # TODO: FIX...
         else:
             raise Exception(
                 "DEQ dimensions not available for proposed dataset")
