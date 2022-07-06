@@ -4,7 +4,7 @@
 # DATASET_PATH='/home/skhalid/Documents/datalake/cifar-10-python/cifar-10-batches-py'
 # rm -rf /tmp/haiku-transformer/checkpoint_* && python -W ignore train.py --job_id "./jobs/1.json"
 
-jobs=$(ls -lrt ./jobs/vector/ | awk '{print $9}')
+jobs=$(ls -lrt ./jobs/vector/*.json | awk '{print $9}')
 jobs_dir=./jobs/vector/
 for job in ${jobs[@]}
 do
