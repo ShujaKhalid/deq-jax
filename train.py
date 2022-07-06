@@ -231,7 +231,7 @@ def main(config):
                 # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
                 data = {'obs': x, 'target': y}
                 if (step < config["opt_attrs"]["max_steps"]):
-                    if (epoch == 0 and step == 0):
+                    if (epoch == 1 and step == 0):
                         # Initialize state
                         state = updater.init(rng, data)
 
