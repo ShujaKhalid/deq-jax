@@ -16,7 +16,7 @@
         "num_classes": 30
     },
     "deq_attrs": {
-        "deq_flag": "False",
+        "deq_flag": "True",
         "max_iter": 10,
         "solver": 1
     },
@@ -49,7 +49,7 @@
         "max_steps": 1000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.0025,
+        "learning_rate": 0.00025,
         "b1": 0.9,
         "b2": 0.99
     },
