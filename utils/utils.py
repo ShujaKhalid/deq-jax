@@ -259,15 +259,23 @@ def preproc(x, config):
     # Change the format of the data
     # from img -> img_patch
     patch_size = config["model_attrs"]["cv"]["patch_size"]
-    return patchify(patch_size, x)
+    patch_scales = eval(config["model_attrs"]["cv"]["scales"])
+    return patchify(patch_size, patch_scales, x)
 
 
-def patchify(patch_size, x):
+def patchify(patch_size, patch_scales, x):
     bsz, cnl, hgt, wdt = x.shape
-    patches_qty = (hgt*wdt)//(patch_size * patch_size)
-    patches_dim = cnl*patch_size**2
-    patches = x.reshape(bsz, patches_qty, patches_dim)
-    # print("patches.shape: {}".format(patches.shape))
+
+    for scale in patch_scales:
+        # scale based modifications
+        patch_size = patch_size * scale
+        cnl = cnl // scale
+        print("cnl.shape: {}".format(cnl.shape))
+        
+        patches_qty = (hgt*wdt)//(patch_size * patch_size)
+        patches_dim = cnl*patch_size**2
+        patches = x.reshape(bsz, patches_qty, patches_dim)
+        print("patches.shape: {}".format(patches.shape))
     # print("self.embed_pos.shape: {}".format(self.embed_pos.shape))
     return patches
 
