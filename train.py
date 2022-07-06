@@ -224,7 +224,7 @@ def main(config):
 
     else:
         # Train the model
-        for epoch in range(config["opt_attrs"]["epochs"]):
+        for epoch in range(1, config["opt_attrs"]["epochs"]):
             loss = []
             for step, (x, y) in enumerate(ds_dict['dl_trn']):
                 x = preproc(x, config)
@@ -245,7 +245,9 @@ def main(config):
                         # print(metrics)
                         metrics.update({'steps_per_sec': steps_per_sec})
                         metrics.update({'loss': np.mean(loss)})
+                        metrics.update({'epoch': np.mean(epoch)})
                         logger(metrics, order=[
+                            'epoch',
                             'step',
                             'loss',
                             'steps_per_sec'
