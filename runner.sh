@@ -9,5 +9,5 @@ jobs_dir=./jobs/vector/
 for job in ${jobs[@]}
 do
     echo $job
-    sbatch ./_launch.sh $jobs_dir$job
+    sbatch ./_launch.sh $job
 done
