@@ -3,7 +3,7 @@ import haiku as hk
 import numpy as np
 import jax.numpy as jnp
 
-from models.architectures.layers import Transformer
+from models.architectures.layers import Transformer as Backbone
 import utils.utils as u
 
 
@@ -84,7 +84,7 @@ class HeadSeg(hk.Module):
         if (self.dataset == "VOCSegmentation"):
             self.interp = Interpolate(scale_factor=8)
         else:
-            self.interp = Interpolate(scale_factor=32)
+            self.interp = Interpolate(scale_factor=16)
         # self.interp = hk.Conv2DTranspose(self.num_classes,
         #                                  kernel_shape=4,
         #                                  stride=1,
@@ -96,7 +96,7 @@ class HeadSeg(hk.Module):
         #print("x.shape (before patchify): {}".format(x.shape))
         if (self.dataset == "VOCSegmentation"):
             x = self.fc1(x)
-            x = u.unpatchify(self.patch_size, x)
+            x = u.unpatchify(x)
             x = self.conv2d_1(x)
             x = self.relu(x)
             x = self.conv2d_2(x)
@@ -106,7 +106,7 @@ class HeadSeg(hk.Module):
             x = self.interp(x)  # replace with transConv if necessary
         else:
             x = self.fc1(x)
-            x = u.unpatchify(self.patch_size, x)
+            x = u.unpatchify(x)
             x = self.conv2d_1(x)
             x = self.relu(x)
             x = self.conv2d_2(x)
@@ -185,8 +185,8 @@ class Transformer(hk.Module):
         embed = self.fc(x)
         x = jnp.concatenate([self.tokens_cls, embed], axis=1)
         x += self.embed_pos
-        x = Transformer(self.depth, self.num_heads,
-                        self.latent_dims[1])(x)
+        x = Backbone(self.depth, self.num_heads,
+                     self.latent_dims[1])(x)
 
         # print("Before strip: {}".format(x.shape))
         # x = x[:, :49, :48]  # TODO: FIX...

@@ -63,17 +63,17 @@ class Datasets():
 
     def get_dataset(self, train):
         def make_jax_friendly_tgt(pic):
-            transform_cityscapes_friendly = transforms.Compose(
+            transform_voc_friendly = transforms.Compose(
                 # REALLY IMPORTANT TO NOT USE TOTENSOR HERE!!!
                 # This is a target mask...
                 [
-                    transforms.Resize(512),
-                    transforms.CenterCrop((256, 512)),
+                    transforms.Resize(256),
+                    transforms.CenterCrop((224, 224)),
                     # transforms.ToTensor(),
                 ])
 
             if (self.dataset_name == "VOCSegmentation"):
-                pic = transform_cityscapes_friendly(pic)
+                pic = transform_voc_friendly(pic)
             pic = np.array(pic)
             return np.array(pic, jnp.float32)
 
@@ -88,8 +88,7 @@ class Datasets():
                 ])
             transform_cityscapes_friendly = transforms.Compose(
                 [
-                    transforms.Resize(256),
-                    transforms.CenterCrop(224),
+                    transforms.Resize((256, 512)),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
                         0.229, 0.224, 0.225])
@@ -104,8 +103,8 @@ class Datasets():
             #     ])
             transform_voc_friendly = transforms.Compose(
                 [
-                    transforms.Resize(512),
-                    transforms.CenterCrop((256, 512)),
+                    transforms.Resize(256),
+                    transforms.CenterCrop(224),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
                         0.229, 0.224, 0.225])

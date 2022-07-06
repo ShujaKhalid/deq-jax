@@ -36,12 +36,17 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, jaccard):
     log_policy = eval(config["logging"]["log_policy"])
     if ("train" in log_policy):
         for i, (x, y) in enumerate(tqdm(ds_dict['dl_trn'])):
-            x = preproc(x, config)
-            train_jac = jaccard(state['params'],
-                                rng,
-                                x,
-                                y)
-            eval_trn.append(train_jac)
+            # print("x (before preproc): {}".format(x))
+            # print("y: {}".format(y))
+            x_patch = jnp.array(preproc(x, config))
+            # print("np.unique(y): {}".format(np.unique(y)))
+            trn_jac = jaccard(state['params'],
+                              rng,
+                              x_patch,
+                              x,
+                              y,
+                              functools.partial(save_img_to_folder, i, epoch))
+            eval_trn.append(trn_jac)
     if ("valid" in log_policy):
         for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
             # print("x (before preproc): {}".format(x))
@@ -53,7 +58,7 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, jaccard):
                                x_patch,
                                x,
                                y,
-                               functools.partial(save_img_to_folder, i))
+                               functools.partial(save_img_to_folder, i, epoch))
             eval_tst.append(test_jac)
         print("epoch: {} - iter: {} - jac_trn {:.2f} - jac_tst: {:.2f}".format(epoch, i,
                                                                                np.mean(eval_trn), np.mean(eval_tst)))

@@ -225,6 +225,7 @@ def main(config):
     else:
         # Train the model
         for epoch in range(config["opt_attrs"]["epochs"]):
+            loss = []
             for step, (x, y) in enumerate(ds_dict['dl_trn']):
                 x = preproc(x, config)
                 # print('x.shape: {}, y.shape: {}'.format(x.shape, y.shape))
@@ -235,13 +236,15 @@ def main(config):
                         state = updater.init(rng, data)
 
                     state, metrics = updater.update(state, data)
-
+                    loss.append(metrics['loss'])
                     # Training logs
                     if step % config["logging"]["log_every"] == 0:
                         steps_per_sec = config["logging"]["log_every"] / \
                             (time.time() - prev_time)
                         prev_time = time.time()
+                        # print(metrics)
                         metrics.update({'steps_per_sec': steps_per_sec})
+                        metrics.update({'loss': np.mean(loss)})
                         logger(metrics, order=[
                             'step',
                             'loss',

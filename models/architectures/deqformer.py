@@ -96,7 +96,7 @@ class HeadSeg(hk.Module):
         #print("x.shape (before patchify): {}".format(x.shape))
         if (self.dataset == "VOCSegmentation"):
             x = self.fc1(x)
-            x = u.unpatchify(self.patch_size, x)
+            x = u.unpatchify(x)
             x = self.conv2d_1(x)
             x = self.relu(x)
             x = self.conv2d_2(x)
@@ -106,7 +106,7 @@ class HeadSeg(hk.Module):
             x = self.interp(x)  # replace with transConv if necessary
         else:
             x = self.fc1(x)
-            x = u.unpatchify(self.patch_size, x)
+            x = u.unpatchify(x)
             x = self.conv2d_1(x)
             x = self.relu(x)
             x = self.conv2d_2(x)
