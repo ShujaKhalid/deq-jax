@@ -30,7 +30,6 @@
             "patch_size": 32,
             "num_heads": 3,
             "depth": 1,
-            "scales": "[1, 2, 4, 8]",
             "latent_dims": "[3072, 3072, 3072]",
             "resample_dim": 1024
         },

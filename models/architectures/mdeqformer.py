@@ -182,6 +182,7 @@ class Transformer(hk.Module):
             output seg: generated segmentation
         """
 
+        print("embedding dims: {}".format(x.shape))
         embed = self.fc(x)
         x = jnp.concatenate([self.tokens_cls, embed], axis=1)
         x += self.embed_pos

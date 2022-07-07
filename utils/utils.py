@@ -50,31 +50,33 @@ def logger(data, order):
             msg + '  --- ', 'green', attrs=['bold'], end=' ')
 
 
-def save_img_to_folder(epoch, i, config, x, y, y_hat):
+def save_img_to_folder(epoch, i, config, x, y, y_hat, ver):
     save_loc = config["checkpoint_dir"]
     # print("Saving to {}".format(save_loc+str(i)+"_pred.png"))
     img_orig = (x[-1, :, :, :].transpose(1, 2, 0) * 255).astype(np.uint8)
     img_orig = Image.fromarray(img_orig)
-    img_orig.save(save_loc+str(epoch)+"_orig.png")
+    img_orig.save(+str(ver)+"_"save_loc+str(epoch)+"_orig.png")
 
     # Print the results out class by class
     if (len(y.shape) == 4 and epoch % config["logging"]["save_imgs_step"] == 0):
         for j in range(y.shape[-1]):
             img_seg = (np.asarray(y[-1, :, :, j]) * 255).astype(np.uint8)
             img_seg = Image.fromarray(img_seg)
-            img_seg.save(save_loc+str(epoch)+"_"+str(j)+"_seg.png")
+            img_seg.save(save_loc+str(ver)+"_" +
+                         str(epoch)+"_"+str(j)+"_seg.png")
 
             img_pred = (np.asarray(y_hat[-1, :, :, j]) * 255).astype(np.uint8)
             img_pred = Image.fromarray(img_pred)
-            img_pred.save(save_loc+str(epoch)+"_"+str(j)+"_pred.png")
+            img_pred.save(save_loc+str(ver)+"_" +
+                          str(epoch)+"_"+str(j)+"_pred.png")
     elif (len(y.shape) == 3):
         img_seg = (np.asarray(y[-1, :, :]) * 255).astype(np.uint8)
         img_seg = Image.fromarray(img_seg)
-        img_seg.save(save_loc+str(epoch)+"_seg.png")
+        img_seg.save(save_loc+str(ver)+"_"+str(epoch)+"_seg.png")
 
         img_pred = (np.asarray(y_hat[-1, :, :]) * 255).astype(np.uint8)
         img_pred = Image.fromarray(img_pred)
-        img_pred.save(save_loc+str(epoch)+"_pred.png")
+        img_pred.save(save_loc+str(ver)+"_"+str(epoch)+"_pred.png")
 
     return
 
@@ -265,17 +267,27 @@ def preproc(x, config):
 
 def patchify(patch_size, patch_scales, x):
     bsz, cnl, hgt, wdt = x.shape
+    patches_qty = (hgt*wdt)//(patch_size**2)
+    patches_dim = cnl*(patch_size**2)
+    patches = x.reshape(bsz, patches_qty, patches_dim)
 
-    for scale in patch_scales:
+    for i, scale in enumerate(patch_scales):
         # scale based modifications
-        patch_size = patch_size * scale
-        cnl = cnl // scale
-        print("cnl.shape: {}".format(cnl.shape))
-        
-        patches_qty = (hgt*wdt)//(patch_size * patch_size)
-        patches_dim = cnl*patch_size**2
-        patches = x.reshape(bsz, patches_qty, patches_dim)
+        ps = patch_size * scale
+        cnl = cnl
+        print("\n")
+        print("ps: {}".format(ps))
+        print("cnl: {}".format(cnl))
+        pq = (hgt*wdt)//(ps**2)
+        print("patches_qty: {}".format(pq))
+        pd = cnl*(ps**2)
+        print("patches_dim: {}".format(pd))
+        patches_scaled = x.reshape(bsz, pq, pd)
+        patches = np.concatenate((patches,
+                                  patches_scaled[:, :, :patches_dim]), axis=1)  # TODO: This is a massive hack... FIXME
         print("patches.shape: {}".format(patches.shape))
+        print("\n")
+
     # print("self.embed_pos.shape: {}".format(self.embed_pos.shape))
     return patches
 

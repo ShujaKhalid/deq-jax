@@ -5,7 +5,7 @@ import jax.numpy as jnp
 
 # Jaccard Index
 # IoU calculation summed over all classes
-def jaccard(params, rng, x_patch, x, y, save_img_to_folder, forward_fn, config):
+def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, config):
     logits = jax.jit(forward_fn.apply)(params, rng, data={
         'obs': x_patch, 'target': y})
 
@@ -20,11 +20,12 @@ def jaccard(params, rng, x_patch, x, y, save_img_to_folder, forward_fn, config):
 
         logits = jax.nn.softmax(logits, axis=-1)
         y = jax.nn.one_hot(y, config["data_attrs"]["num_classes"])
-        print("y: {} - y_hat: {}".format(y.shape, logits.shape))
+        print("ver: {} - y: {} - y_hat: {}".format(ver, y.shape, logits.shape))
 
         y_rsp = y.reshape(-1, y.shape[-1]).astype(bool)
         logits_rsp = logits.reshape(-1, logits.shape[-1]).astype(bool)
-        print("y_rsp: {} - logits_rsp: {}".format(y_rsp.shape, logits_rsp.shape))
+        print("ver: {} - y_rsp: {} - logits_rsp: {}".format(ver,
+              y_rsp.shape, logits_rsp.shape))
 
         # prep
         n = np.bitwise_and(y_rsp, logits_rsp)
@@ -36,18 +37,18 @@ def jaccard(params, rng, x_patch, x, y, save_img_to_folder, forward_fn, config):
         # Jaccard class-wise
         jaccard_classwise = {v: np.sum(jaccard_matrix[:, v])/(y_rsp.shape[0])
                              for v in range(jaccard_matrix.shape[-1])}
-        print("jaccard_classwise: {}".format(jaccard_classwise))
+        print("ver: {} - jaccard_classwise: {}".format(ver, jaccard_classwise))
         jaccard_overall = np.mean(
             [v for v in list(jaccard_classwise.values()) if v != 0.0])
-        print("jaccard_overall: {}".format(jaccard_overall))
+        print("ver: {} - jaccard_overall: {}".format(ver, jaccard_overall))
 
         # Dice Coefficient
         dice_classwise = {v: 2*np.sum(n[:, v])/(y_rsp[:, v].sum()+logits_rsp[:, v].sum())
                           for v in range(jaccard_matrix.shape[-1])}
-        print("dice_classwise: {}".format(dice_classwise))
+        print("ver: {} - dice_classwise: {}".format(ver, dice_classwise))
         dice_overall = np.mean(
             [v for v in list(dice_classwise.values()) if v != 0.0])
-        print("dice_overall: {}".format(dice_overall))
+        print("ver: {} - dice_overall: {}".format(ver, dice_overall))
 
     else:
         print("y: {} - y_hat: {}".format(y.shape, logits.shape))
@@ -67,7 +68,7 @@ def jaccard(params, rng, x_patch, x, y, save_img_to_folder, forward_fn, config):
 
     #print("np.unique(y_hat): {}".format(np.unique(y_hat)))
     #print("np.unique(y): {}".format(np.unique(y)))
-    save_img_to_folder(config, x, y, logits)
+    save_img_to_folder(config, x, y, logits, ver)
 
     return jaccard_overall
 
