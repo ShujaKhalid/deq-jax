@@ -167,7 +167,7 @@ class CheckpointingUpdater:
 def main(config):
 
     config["checkpoint_dir"] = config["logging"]["logdir"] + \
-        str(int(time.time())) + "/"
+        str(int(time.time_ns()/1000)) + "/"
 
     # Save a snapshot of the code to the checkpoint directory
     os.system("mkdir -p "+config["checkpoint_dir"])
