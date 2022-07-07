@@ -10,7 +10,7 @@
         "save_imgs_step": 20
     },
     "data_attrs": {
-        "dataset_path": "/scratch/ssd002/home/skhalid/",
+        "dataset_path": "/home/skhalid/Documents/datalake/",
         "dataset": "Cityscapes",
         "transform": "None",
         "num_classes": 30
@@ -18,16 +18,17 @@
     "deq_attrs": {
         "deq_flag": "True",
         "max_iter": 10,
-        "solver": 1
+        "solver": 0
     },
     "model_attrs": {
-        "batch_size": 16,
+        "batch_size": 8,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
             "patch_size": 32,
+            "scales": "[2,4,8]",
             "num_heads": 3,
             "depth": 1,
             "latent_dims": "[3072, 3072, 3072]",

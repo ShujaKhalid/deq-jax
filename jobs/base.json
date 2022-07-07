@@ -13,7 +13,7 @@
         "dataset_path": "/home/skhalid/Documents/datalake/",
         "dataset": "VOCSegmentation",
         "transform": "None",
-        "num_classes": 20
+        "num_classes": 30
     },
     "deq_attrs": {
         "deq_flag": "False",
