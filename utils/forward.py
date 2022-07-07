@@ -109,7 +109,7 @@ class Forward():
             x = data['obs']
 
             def cls_fn(x):
-                model = self.model(x[0].shape,
+                model = self.model(x.shape,
                                    self.patch_size,
                                    self.num_heads,
                                    self.num_classes,
@@ -131,7 +131,7 @@ class Forward():
             x = data['obs']
 
             def seg_fn(x):
-                model = self.model(x[0].shape,
+                model = self.model(x.shape,
                                    self.patch_size,
                                    self.num_heads,
                                    self.num_classes,

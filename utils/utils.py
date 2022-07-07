@@ -1,3 +1,4 @@
+from re import X
 import jax
 import numpy as np
 import haiku as hk
@@ -8,6 +9,8 @@ from torch.utils import data
 from termcolor import cprint
 from models.deq import deq
 from PIL import Image
+
+from models.architectures.mdeqformer import Patchify
 
 
 class NumpyLoader(data.DataLoader):
@@ -260,44 +263,61 @@ def preproc(x, config):
 
     # Change the format of the data
     # from img -> img_patch
-    patch_size = config["model_attrs"]["cv"]["patch_size"]
-    patch_scales = eval(config["model_attrs"]["cv"]["scales"])
-    return patchify(patch_size, patch_scales, x)
+    # patch_size = config["model_attrs"]["cv"]["patch_size"]
+    # patch_scales = eval(config["model_attrs"]["cv"]["scales"])
+
+    # Get the segmentation head
+    def patchify_fn(config, x):
+        patchify = Patchify(config)
+        return patchify(x)
+
+    rng = jax.random.PRNGKey(428)  # FIXME I dont thhink this is right...
+
+    init, apply = hk.transform(patchify_fn)
+    params = init(rng, config, x)
+    patched = apply(params, rng, config, x)
+
+    return patched
 
 
-def patchify(patch_size, patch_scales, x) -> list:
-    """
+# def get_patches(config, x):
 
-    out:
-        scaled data -> list 
-    """
-    patches_arr = []
-    bsz, cnl, hgt, wdt = x.shape
-    patches_qty = (hgt*wdt)//(patch_size**2)
-    patches_dim = cnl*(patch_size**2)
-    patches = x.reshape(bsz, patches_qty, patches_dim).astype('float32')
-    patches_arr.append(patches)
 
-    # Run scales only if necessary
-    if (len(patch_scales) > 0):
-        for _, scale in enumerate(patch_scales):
-            # scale based modifications
-            ps = patch_size * scale
-            cnl = cnl
-            print("\n")
-            print("ps: {}".format(ps))
-            print("cnl: {}".format(cnl))
-            pq = (hgt*wdt)//(ps**2)
-            print("patches_qty: {}".format(pq))
-            pd = cnl*(ps**2)
-            print("patches_dim: {}".format(pd))
-            patches_scaled = x.reshape(bsz, pq, pd)
-            # TODO: This is a massive hack... FIXME
-            patches_arr.append(patches_scaled.astype('float32'))
-            print("patches_scaled.shape: {}".format(patches_scaled.shape))
-            print("\n")
+#     return patchify(x)
 
-    return patches_arr
+# def patchify(patch_size, patch_scales, x) -> list:
+#     """
+
+#     out:
+#         scaled data -> list
+#     """
+#     patches_arr = []
+#     bsz, cnl, hgt, wdt = x.shape
+#     patches_qty = (hgt*wdt)//(patch_size**2)
+#     patches_dim = cnl*(patch_size**2)
+#     patches = x.reshape(bsz, patches_qty, patches_dim).astype('float32')
+#     patches_arr.append(patches)
+
+#     # Run scales only if necessary
+#     if (len(patch_scales) > 0):
+#         for _, scale in enumerate(patch_scales):
+#             # scale based modifications
+#             ps = patch_size * scale
+#             cnl = cnl
+#             # print("\n")
+#             # print("ps: {}".format(ps))
+#             # print("cnl: {}".format(cnl))
+#             pq = (hgt*wdt)//(ps**2)
+#             # print("patches_qty: {}".format(pq))
+#             pd = cnl*(ps**2)
+#             # print("patches_dim: {}".format(pd))
+#             patches_scaled = x.reshape(bsz, pq, pd)
+#             # TODO: This is a massive hack... FIXME
+#             patches_arr.append(patches_scaled.astype('float32'))
+#             # print("patches_scaled.shape: {}".format(patches_scaled.shape))
+#             # print("\n")
+
+#     return patches_arr
 
 
 def unpatchify(patches):
@@ -317,8 +337,15 @@ def unpatchify(patches):
     base_factor = 2
     hgt = wdt = int(np.sqrt(patches_dim)) * base_factor
     wdt = wdt * base_factor
-    cnl = (patches_qty) // (4*base_factor)
-    x = patches.reshape(bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
+    cnl = (patches_qty) // (2**(base_factor+1))
+    d_new = (cnl) * (2**(base_factor+1))
+    # patches_pad = jnp.zeros((bsz, d_new, patches_dim))
+    # TODO: zero pad to avoid constant dim issues
+    # patches_pad.at[:bsz, :patches_qty, :patches_dim].set(
+    #     patches[:bsz, :patches_qty, :patches_dim])
+    # patches_pad = jnp.array(patches_pad)
+    x = patches[:bsz, :d_new, :patches_dim].reshape(
+        bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
 
     return x
 

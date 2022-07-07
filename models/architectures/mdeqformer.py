@@ -93,7 +93,7 @@ class HeadSeg(hk.Module):
         self.sigmoid = jax.nn.sigmoid
 
     def __call__(self, x):
-        #print("x.shape (before patchify): {}".format(x.shape))
+        # print("x.shape (before patchify): {}".format(x.shape))
         if (self.dataset == "VOCSegmentation"):
             x = self.fc1(x)
             x = u.unpatchify(x)
@@ -133,6 +133,66 @@ class HeadSeg(hk.Module):
 #     return x
 
 
+class Patchify(hk.Module):
+    def __init__(self,
+                 config,
+                 ):
+        super(Patchify, self).__init__()
+        self.config = config
+        self.patch_size = self.config["model_attrs"]["cv"]["patch_size"]
+        self.latent_dims = eval(
+            self.config["model_attrs"]["cv"]["latent_dims"])
+        self.batch_size = self.config["model_attrs"]["batch_size"]
+        self.init = jax.nn.initializers.normal(stddev=1.0)
+        # TODO: can this be replaced with latent dims? or vice-versa?
+        self.resample_dim = self.config["model_attrs"]["cv"]["resample_dim"]
+        self.scales = eval(self.config["model_attrs"]["cv"]["scales"])
+
+    def __call__(self, x):
+        """
+        Apply the vision transformer to the given input (img tensor)
+
+        Input:
+            self.x: Input tensor image
+            self.path_size: How many patches should the image be broken into?
+            self.depth: How many residual layers do we want out transformer to have?
+            self.num_heads: How many attensiotn heads? (Support choice of attention heads from literature)
+            self.latent_dim: latent dim for fc layer
+
+        Output:
+            output_cls: output classification
+            output seg: generated segmentation
+        """
+        patches_arr = []
+        bsz, cnl, hgt, wdt = x.shape
+        patches_qty = (hgt*wdt)//(self.patch_size**2)
+        patches_dim = cnl*(self.patch_size**2)
+        patches = x.reshape(bsz, patches_qty, patches_dim).astype('float32')
+        patches_arr.append(patches)
+
+        # Run scales only if necessary
+        if (len(self.scales) > 0):
+            for _, scale in enumerate(self.scales):
+                # scale based modifications
+                ps = self.patch_size * scale
+                cnl = cnl
+                pq = (hgt*wdt)//(ps**2)
+                pd = cnl*(ps**2)
+                patches_scaled = x.reshape(bsz, pq, pd)
+                # TODO: This is a massive hack... FIXME
+                patches_arr.append(patches_scaled.astype('float32'))
+
+        embed_arr = jnp.zeros((self.batch_size, 0, self.latent_dims[0]))
+        for indx in range(len(patches_arr)):
+            inp = patches_arr[indx]
+            # out = self.fc(inp)
+            out = hk.Linear(self.latent_dims[0])(inp)
+            embed_arr = jnp.concatenate((embed_arr, out), axis=1)
+        # print("embedding dims (after): {}".format(jnp.array(embed_arr).shape))
+
+        return embed_arr
+
+
 class Transformer(hk.Module):
     def __init__(self,
                  x_size,
@@ -159,14 +219,14 @@ class Transformer(hk.Module):
         self.resample_dim = resample_dim
         # self.head_seg = HeadSeg(self.resample_dim, self.num_classes)
         # self.head_depth = HeadDepth(self.resample_dim)
-        self.fc = hk.Linear(self.latent_dims[0])
+        #self.fc = hk.Linear(self.latent_dims[0])
         self.batch_size, self.patches_qty, self.cnl = self.x_size
         self.patches_dim = self.cnl*self.patch_size**2
         self.scales = self.config["model_attrs"]["cv"]["scales"]
         self.tokens_cls = hk.get_parameter(
             'tokens_cls', shape=(self.batch_size, 1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
-        self.embed_pos = hk.get_parameter(
-            'embed_pos', shape=(1, self.patches_qty+1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
+        # self.embed_pos = hk.get_parameter(
+        #     'embed_pos', shape=(1, self.patches_qty+1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
 
     def __call__(self, x, *args):
         """
@@ -184,27 +244,21 @@ class Transformer(hk.Module):
             output seg: generated segmentation
         """
 
-        print("self.scales: {}".format(self.scales))
-        print("x.shape: {}".format(x.shape))
-        patch_scales = eval(self.scales)
-        embed_arr = []
-        for indx in range(len(patch_scales)):
-            out = self.fc(x[indx])
-            print(out.shape)
-            embed_arr.append(out)
-        print("embedding dims (after): {}".format(np.array(embed_arr).shape))
+        embed_pos = hk.get_parameter(
+            'embed_pos', shape=(1, x.shape[1]+1, self.latent_dims[0]), init=jnp.zeros)
+        x = jnp.concatenate([self.tokens_cls, x], axis=1)
+        x += embed_pos
 
-        x = jnp.concatenate([self.tokens_cls, embed], axis=1)
-        x += self.embed_pos
+        # Run through main transformer backbone
         x = Backbone(self.depth, self.num_heads,
                      self.latent_dims[1])(x)
 
         # print("Before strip: {}".format(x.shape))
         # x = x[:, :49, :48]  # TODO: FIX...
         if (self.dataset == "Cityscapes"):
-            x = x[:, :self.patches_qty, :self.latent_dims[1]]  # TODO: FIX...
+            x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
         elif (self.dataset == "VOCSegmentation"):
-            x = x[:, :self.patches_qty, :self.latent_dims[1]]  # TODO: FIX...
+            x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
         else:
             raise Exception(
                 "DEQ dimensions not available for proposed dataset")
