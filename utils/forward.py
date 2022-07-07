@@ -106,10 +106,10 @@ class Forward():
             return z_star
         elif (self.mode == 'cls_trans'):
 
-            x = data['obs'].astype('float32')
+            x = data['obs']
 
             def cls_fn(x):
-                model = self.model(x.shape,
+                model = self.model(x[0].shape,
                                    self.patch_size,
                                    self.num_heads,
                                    self.num_classes,
@@ -128,10 +128,10 @@ class Forward():
         # TODO: Add fusion modeule or the like...
         elif (self.mode == 'seg'):
 
-            x = data['obs'].astype('float32')
+            x = data['obs']
 
             def seg_fn(x):
-                model = self.model(x.shape,
+                model = self.model(x[0].shape,
                                    self.patch_size,
                                    self.num_heads,
                                    self.num_classes,

@@ -55,7 +55,7 @@ def save_img_to_folder(epoch, i, config, x, y, y_hat, ver):
     # print("Saving to {}".format(save_loc+str(i)+"_pred.png"))
     img_orig = (x[-1, :, :, :].transpose(1, 2, 0) * 255).astype(np.uint8)
     img_orig = Image.fromarray(img_orig)
-    img_orig.save(+str(ver)+"_"save_loc+str(epoch)+"_orig.png")
+    img_orig.save(save_loc+str(ver)+str(epoch)+"_orig.png")
 
     # Print the results out class by class
     if (len(y.shape) == 4 and epoch % config["logging"]["save_imgs_step"] == 0):
@@ -265,31 +265,39 @@ def preproc(x, config):
     return patchify(patch_size, patch_scales, x)
 
 
-def patchify(patch_size, patch_scales, x):
+def patchify(patch_size, patch_scales, x) -> list:
+    """
+
+    out:
+        scaled data -> list 
+    """
+    patches_arr = []
     bsz, cnl, hgt, wdt = x.shape
     patches_qty = (hgt*wdt)//(patch_size**2)
     patches_dim = cnl*(patch_size**2)
-    patches = x.reshape(bsz, patches_qty, patches_dim)
+    patches = x.reshape(bsz, patches_qty, patches_dim).astype('float32')
+    patches_arr.append(patches)
 
-    for i, scale in enumerate(patch_scales):
-        # scale based modifications
-        ps = patch_size * scale
-        cnl = cnl
-        print("\n")
-        print("ps: {}".format(ps))
-        print("cnl: {}".format(cnl))
-        pq = (hgt*wdt)//(ps**2)
-        print("patches_qty: {}".format(pq))
-        pd = cnl*(ps**2)
-        print("patches_dim: {}".format(pd))
-        patches_scaled = x.reshape(bsz, pq, pd)
-        patches = np.concatenate((patches,
-                                  patches_scaled[:, :, :patches_dim]), axis=1)  # TODO: This is a massive hack... FIXME
-        print("patches.shape: {}".format(patches.shape))
-        print("\n")
+    # Run scales only if necessary
+    if (len(patch_scales) > 0):
+        for _, scale in enumerate(patch_scales):
+            # scale based modifications
+            ps = patch_size * scale
+            cnl = cnl
+            print("\n")
+            print("ps: {}".format(ps))
+            print("cnl: {}".format(cnl))
+            pq = (hgt*wdt)//(ps**2)
+            print("patches_qty: {}".format(pq))
+            pd = cnl*(ps**2)
+            print("patches_dim: {}".format(pd))
+            patches_scaled = x.reshape(bsz, pq, pd)
+            # TODO: This is a massive hack... FIXME
+            patches_arr.append(patches_scaled.astype('float32'))
+            print("patches_scaled.shape: {}".format(patches_scaled.shape))
+            print("\n")
 
-    # print("self.embed_pos.shape: {}".format(self.embed_pos.shape))
-    return patches
+    return patches_arr
 
 
 def unpatchify(patches):

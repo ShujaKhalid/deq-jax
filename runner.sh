@@ -10,4 +10,5 @@ rm -rf /tmp/haiku-transformer/checkpoint_* && python -W ignore train.py --job_id
 # do
 #     echo $job
 #     sbatch ./_launch.sh $job
+#     sleep 2
 # done

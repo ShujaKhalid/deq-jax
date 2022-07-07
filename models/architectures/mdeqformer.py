@@ -146,6 +146,7 @@ class Transformer(hk.Module):
                  config
                  ):
         super(Transformer, self).__init__()
+        self.config = config
         self.x_size = x_size
         self.patch_size = patch_size
         self.num_heads = num_heads
@@ -153,7 +154,7 @@ class Transformer(hk.Module):
         self.depth = depth
         self.latent_dims = latent_dims
         self.mode = mode
-        self.dataset = config["data_attrs"]["dataset"]
+        self.dataset = self.config["data_attrs"]["dataset"]
         self.init = jax.nn.initializers.normal(stddev=1.0)
         self.resample_dim = resample_dim
         # self.head_seg = HeadSeg(self.resample_dim, self.num_classes)
@@ -161,6 +162,7 @@ class Transformer(hk.Module):
         self.fc = hk.Linear(self.latent_dims[0])
         self.batch_size, self.patches_qty, self.cnl = self.x_size
         self.patches_dim = self.cnl*self.patch_size**2
+        self.scales = self.config["model_attrs"]["cv"]["scales"]
         self.tokens_cls = hk.get_parameter(
             'tokens_cls', shape=(self.batch_size, 1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
         self.embed_pos = hk.get_parameter(
@@ -182,8 +184,16 @@ class Transformer(hk.Module):
             output seg: generated segmentation
         """
 
-        print("embedding dims: {}".format(x.shape))
-        embed = self.fc(x)
+        print("self.scales: {}".format(self.scales))
+        print("x.shape: {}".format(x.shape))
+        patch_scales = eval(self.scales)
+        embed_arr = []
+        for indx in range(len(patch_scales)):
+            out = self.fc(x[indx])
+            print(out.shape)
+            embed_arr.append(out)
+        print("embedding dims (after): {}".format(np.array(embed_arr).shape))
+
         x = jnp.concatenate([self.tokens_cls, embed], axis=1)
         x += self.embed_pos
         x = Backbone(self.depth, self.num_heads,
