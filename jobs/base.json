@@ -1,19 +1,19 @@
 {
     "mode": "seg",
     "logging": {
-        "eval_every": 100,
+        "eval_every": 1,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
         "log_every": 10,
-        "save_imgs_step": 20
+        "save_imgs_step": 5
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
         "dataset": "VOCSegmentation",
         "transform": "None",
-        "num_classes": 30
+        "num_classes": 20
     },
     "deq_attrs": {
         "deq_flag": "False",
@@ -47,7 +47,7 @@
         }
     },
     "opt_attrs": {
-        "max_steps": 10000,
+        "max_steps": 2,
         "epochs": 10000,
         "grad_clip_value": 1,
         "learning_rate": 0.00025,
