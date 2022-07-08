@@ -1,7 +1,7 @@
 {
     "mode": "seg",
     "logging": {
-        "eval_every": 1,
+        "eval_every": 100,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
@@ -47,7 +47,7 @@
         }
     },
     "opt_attrs": {
-        "max_steps": 2,
+        "max_steps": 1000,
         "epochs": 10000,
         "grad_clip_value": 1,
         "learning_rate": 0.00025,
