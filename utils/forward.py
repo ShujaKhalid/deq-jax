@@ -25,6 +25,16 @@ class Forward():
             self.latent_dims = eval(
                 self.config["model_attrs"]["cv"]["latent_dims"])
             self.resample_dim = self.config["model_attrs"]["cv"]["resample_dim"]
+        if (self.mode == "cls_trans"):
+            self.num_layers = self.config["model_attrs"]["cv"]["num_layers"]
+            self.dropout_rate = self.config["model_attrs"]["cv"]["dropout_rate"]
+            self.d_model = self.config["model_attrs"]["cv"]["d_model"]
+            self.patch_size = self.config["model_attrs"]["cv"]["patch_size"]
+            self.num_heads = self.config["model_attrs"]["cv"]["num_heads"]
+            self.depth = self.config["model_attrs"]["cv"]["depth"]
+            self.latent_dims = eval(
+                self.config["model_attrs"]["cv"]["latent_dims"])
+            self.resample_dim = self.config["model_attrs"]["cv"]["resample_dim"]
         elif (self.mode == "text"):
             self.num_layers = self.config["model_attrs"]["lm"]["num_layers"]
             self.dropout_rate = self.config["model_attrs"]["lm"]["dropout_rate"]

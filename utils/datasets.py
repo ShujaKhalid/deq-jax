@@ -176,7 +176,7 @@ class Datasets():
         elif (self.dataset_name == "Cityscapes"):
             return getattr(torchvision.datasets, self.dataset_name)(
                 root=self.dataset_path+"cityscapes",
-                split="train" if train else "val",
+                split="train" if train else "test",
                 # ["coarse", "fine"]
                 mode="fine",
                 # ["instance", "semantic", "polygon", "color"]

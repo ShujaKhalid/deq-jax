@@ -171,16 +171,20 @@ class Patchify(hk.Module):
         patches_arr.append(patches)
 
         # Run scales only if necessary
-        if (len(self.scales) > 0):
-            for _, scale in enumerate(self.scales):
-                # scale based modifications
-                ps = self.patch_size * scale
-                cnl = cnl
-                pq = (hgt*wdt)//(ps**2)
-                pd = cnl*(ps**2)
-                patches_scaled = x.reshape(bsz, pq, pd)
-                # TODO: This is a massive hack... FIXME
-                patches_arr.append(patches_scaled.astype('float32'))
+        try:
+            if (len(self.scales) > 0):
+                for _, scale in enumerate(self.scales):
+                    # scale based modifications
+                    ps = self.patch_size * scale
+                    cnl = cnl
+                    pq = (hgt*wdt)//(ps**2)
+                    pd = cnl*(ps**2)
+                    patches_scaled = x.reshape(bsz, pq, pd)
+                    # TODO: This is a massive hack... FIXME
+                    patches_arr.append(patches_scaled.astype('float32'))
+        except:
+            raise Exception(
+                "This could be related to the `scales` parameter in your config file.")
 
         embed_arr = jnp.zeros((self.batch_size, 0, self.latent_dims[0]))
         for indx in range(len(patches_arr)):
@@ -258,6 +262,12 @@ class Transformer(hk.Module):
         if (self.dataset == "Cityscapes"):
             x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
         elif (self.dataset == "VOCSegmentation"):
+            x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
+        elif (self.dataset == "CIFAR10"):
+            x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
+        elif (self.dataset == "ImageNet"):
+            x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
+        elif (self.dataset == "MNIST"):
             x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
         else:
             raise Exception(

@@ -1,7 +1,8 @@
 import jax
 import numpy as np
 import jax.numpy as jnp
-#from sklearn.metrics import jaccard_score
+import tabulate
+from sklearn.metrics import classification_report
 
 
 def dice_coeff(logits, y_ohe):
@@ -18,7 +19,7 @@ def jaccard_score(logits, y_ohe):
 
 # Jaccard Index
 # IoU calculation summed over all classes
-def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, config):
+def seg_metrics(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, config):
     logits = jax.jit(forward_fn.apply)(params, rng, data={
         'obs': x_patch, 'target': y})
 
@@ -93,8 +94,20 @@ def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, con
 
 
 # mean average precision
-def accuracy(params, rng, x, y, forward_fn):
+def cls_metrics(params, rng, x, y, forward_fn):
+    preds = forward_fn.apply(params, rng, data={'obs': x, 'target': y})
+
+    # Accuracy
     target_class = jnp.argmax(y, axis=1)
     predicted_class = jnp.argmax(
-        forward_fn.apply(params, rng, data={'obs': x, 'target': y}), axis=1)
-    return jnp.mean(predicted_class == target_class)
+        preds, axis=1)
+    acc = jnp.mean(predicted_class == target_class)
+
+    rep = classification_report(
+        target_class, predicted_class, output_dict=True)
+    acc = rep["accuracy"]
+    rec = rep["macro avg"]["precision"]
+    prec = rep["macro avg"]["recall"]
+    f1 = rep["macro avg"]["f1-score"]
+
+    return acc, rec, prec, f1

@@ -29,11 +29,10 @@ class Losses():
     def vm_loss_fn(self,
                    params,
                    rng,
-                   data: Mapping[str, jnp.ndarray],
-                   is_training: bool = True) -> jnp.ndarray:
+                   data: Mapping[str, jnp.ndarray]) -> jnp.ndarray:
         """Compute the loss on data wrt params."""
         # print('data.shape: {}'.format(data))
-        logits = self.forward_fn(params, rng, data, is_training)
+        logits = self.forward_fn.apply(params, rng, data)
         targets = jax.nn.one_hot(data['target'], self.num_classes)
         print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
         assert logits.shape == targets.shape

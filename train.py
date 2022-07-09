@@ -49,7 +49,7 @@ from absl import logging
 from utils.forward import Forward
 from utils.losses import Losses
 from utils.datasets import Datasets
-from utils.metrics import jaccard, accuracy
+from utils.metrics import seg_metrics, cls_metrics
 
 import jax
 import optax
@@ -255,16 +255,14 @@ def main(config):
                 else:
                     break
 
-            # for j, k in ds_dict['dl_trn']:
-            #     print(j)
             # ============================ Evaluation logs ===========================
             if (epoch % config["logging"]["eval_every"] == 0 and epoch != 0):
                 if (config["mode"] == "cls" or config["mode"] == "cls_trans"):
                     evaluate_cls(rng, state, epoch, config,
-                                 ds_dict, preproc, functools.partial(accuracy, forward_fn=forward_fn))
+                                 ds_dict, preproc, functools.partial(cls_metrics, forward_fn=forward_fn))
                 elif (config["mode"] == "seg"):
                     evaluate_seg(rng, state, epoch, config,
-                                 ds_dict, preproc, functools.partial(jaccard, forward_fn=forward_fn, config=config))
+                                 ds_dict, preproc, functools.partial(seg_metrics, forward_fn=forward_fn, config=config))
                 else:
                     raise Exception(
                         "Incorrect mode selected... review configuration file")

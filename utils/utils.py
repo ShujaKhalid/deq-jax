@@ -142,15 +142,15 @@ def run(config, x, model):
         # params, state = model.init(hk.next_rng_key(), x, is_training=True)
         rng = hk.next_rng_key()
         params = hk.experimental.lift(
-            model.init)(rng, x, is_training=True)
-        if (config["deq_flag"] == "True"):
+            model.init)(rng, x)
+        if (config["deq_attrs"]["deq_flag"] == "True"):
             # Define a callable function for ease of access downstream
             def f(params, state, rng, x):
                 return model.apply(params, state, rng, x)
 
             z_star = deq(
                 params,
-                config["solver"],
+                config["deq_attrs"]["solver"],
                 0 if config["mode"] == "text" else 1,
                 hk.next_rng_key(),
                 x,
@@ -160,8 +160,7 @@ def run(config, x, model):
         else:
             z_star = model.apply(params,
                                  None,
-                                 x,
-                                 is_training=True)
+                                 x)
     elif (config["mode"] == 'seg'):
         # params, state = model.init(hk.next_rng_key(), x, is_training=True)
         rng = hk.next_rng_key()
@@ -186,13 +185,13 @@ def run(config, x, model):
                                  None,
                                  x)
 
-        # Get the segmentation head
-        def seg_head_fn(x, config):
-            return get_outputs(x, config)
-        seg_head_fn = hk.transform(seg_head_fn)
-        params = hk.experimental.lift(
-            seg_head_fn.init)(rng, z_star, config)
-        z_star = seg_head_fn.apply(params, rng, z_star, config)
+    # Get the prediction head
+    def head_fn(x, config):
+        return get_outputs(x, config)
+    head_fn = hk.transform(head_fn)
+    params = hk.experimental.lift(
+        head_fn.init)(rng, z_star, config)
+    z_star = head_fn.apply(params, rng, z_star, config)
 
     return z_star
 
@@ -280,46 +279,6 @@ def preproc(x, config):
     return patched
 
 
-# def get_patches(config, x):
-
-
-#     return patchify(x)
-
-# def patchify(patch_size, patch_scales, x) -> list:
-#     """
-
-#     out:
-#         scaled data -> list
-#     """
-#     patches_arr = []
-#     bsz, cnl, hgt, wdt = x.shape
-#     patches_qty = (hgt*wdt)//(patch_size**2)
-#     patches_dim = cnl*(patch_size**2)
-#     patches = x.reshape(bsz, patches_qty, patches_dim).astype('float32')
-#     patches_arr.append(patches)
-
-#     # Run scales only if necessary
-#     if (len(patch_scales) > 0):
-#         for _, scale in enumerate(patch_scales):
-#             # scale based modifications
-#             ps = patch_size * scale
-#             cnl = cnl
-#             # print("\n")
-#             # print("ps: {}".format(ps))
-#             # print("cnl: {}".format(cnl))
-#             pq = (hgt*wdt)//(ps**2)
-#             # print("patches_qty: {}".format(pq))
-#             pd = cnl*(ps**2)
-#             # print("patches_dim: {}".format(pd))
-#             patches_scaled = x.reshape(bsz, pq, pd)
-#             # TODO: This is a massive hack... FIXME
-#             patches_arr.append(patches_scaled.astype('float32'))
-#             # print("patches_scaled.shape: {}".format(patches_scaled.shape))
-#             # print("\n")
-
-#     return patches_arr
-
-
 def unpatchify(patches):
     # patches = patches[:, :-1, :]
     # bsz, patches_qty, patches_dim = patches.shape
@@ -372,7 +331,7 @@ def get_outputs(x, config):
     elif (mode == "depth"):
         head_dep = HeadDepth(resample_dim, patch_size)
         x = head_dep(x)
-    elif (mode == "cls"):
+    elif (mode == "cls" or mode == "cls_trans"):
         # z_star = jnp.mean(z_star[:, 0])
         x = jnp.mean(x, axis=1)
         x = hk.Linear(resample_dim)(x)
@@ -380,9 +339,5 @@ def get_outputs(x, config):
         x = hk.Linear(num_classes)(x)
     else:
         raise Exception("get_outputs incorrectly selected")
-    # elif (mode == "segdepth"):
-    #     seg = head_seg(x)
-    #     depth = depth(x)
-    #     return seg, depth
 
     return x
