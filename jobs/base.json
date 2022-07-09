@@ -1,7 +1,7 @@
 {
     "mode": "seg",
     "logging": {
-        "eval_every": 100,
+        "eval_every": 2,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
@@ -18,7 +18,7 @@
     "deq_attrs": {
         "deq_flag": "False",
         "max_iter": 10,
-        "solver": 1
+        "solver": 0
     },
     "model_attrs": {
         "batch_size": 8,
@@ -30,7 +30,7 @@
             "patch_size": 32,
             "scales": "[2,4,8]",
             "num_heads": 3,
-            "depth": 1,
+            "depth": 3,
             "latent_dims": "[3072, 3072, 3072]",
             "resample_dim": 1024
         },
@@ -47,7 +47,7 @@
         }
     },
     "opt_attrs": {
-        "max_steps": 1000,
+        "max_steps": 2,
         "epochs": 10000,
         "grad_clip_value": 1,
         "learning_rate": 0.00025,

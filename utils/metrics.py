@@ -1,6 +1,13 @@
 import jax
 import numpy as np
 import jax.numpy as jnp
+from sklearn.metrics import jaccard_score
+
+
+def dice_coeff(y_ohe, logits, v):
+    n = np.bitwise_and(y_ohe, logits)
+    # u = np.bitwise_or(y_ohe, logits)
+    return 2*np.sum(n[:, :, :, v])/(y_ohe[:, :, :, v].sum()+logits[:, :, :, v].sum())
 
 
 # Jaccard Index
@@ -9,57 +16,47 @@ def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, con
     logits = jax.jit(forward_fn.apply)(params, rng, data={
         'obs': x_patch, 'target': y})
 
-    # IoU
-    # logits_red = jnp.argmax(logits, axis=-1)
-    # y_red = jnp.argmax(y, axis=-1)
-    # print("y_red: {} - y_hat_red: {}".format(y_red, y_hat_red))
+    if (config["data_attrs"]["dataset"] == "VOCSegmentation"):
+        class_names = ['background', 'aeroplane', 'bicycle', 'bird', 'boat',
+                       'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
+                       'diningtable', 'dog', 'horse', 'motorbike', 'person',
+                       'potted plant', 'sheep', 'sofa', 'train', 'tv/monitor']
+    elif (config["data_attrs"]["dataset"] == "Cityscapes"):
+        class_names = []
+        # IoU
+        # logits_red = jnp.argmax(logits, axis=-1)
+        # y_red = jnp.argmax(y, axis=-1)
+        # print("y_red: {} - y_hat_red: {}".format(y_red, y_hat_red))
 
-    # binary cross entropy along the different axes
+        # binary cross entropy along the different axes
     if (config["data_attrs"]["num_classes"] != 1):
         print("y.unique(): {}".format(np.unique(y)))
 
-        dims = y.shape[1] * y.shape[2]
-        logits = jax.nn.softmax(logits, axis=-1)
-        y_ohe = jax.nn.one_hot(y, config["data_attrs"]["num_classes"])
+        # dims = y.shape[1] * y.shape[2]
+        classes = config["data_attrs"]["num_classes"]
+        logits = jax.nn.softmax(logits, axis=-1).astype(bool)
+        y_ohe = jax.nn.one_hot(
+            y, classes).astype(bool)
         print("ver: {} - y: {} - y_hat: {} - y_ohe: {}".format(ver,
               y.shape, logits.shape, y_ohe.shape))
 
-        y_rsp = y_ohe.reshape(-1, y_ohe.shape[-1]).astype(bool)
-        logits_rsp = logits.reshape(-1, logits.shape[-1]).astype(bool)
-        print("ver: {} - y_rsp: {} - logits_rsp: {}".format(ver,
-              y_rsp.shape, logits_rsp.shape))
-
-        # prep
-        # y_rsp = y_rsp != 0.0
-        # logits_rsp = logits_rsp != 0.0
-        n = np.bitwise_and(y_rsp, logits_rsp)
-        u = np.bitwise_or(y_rsp, logits_rsp)
-        jaccard_matrix = (n/u).astype(bool)
-        # jaccard_matrix[jaccard_matrix != jaccard_matrix] = 0.0
-        class_img_map = {cls: np.sum([1.0 if cls in y[b, :, :] else 0.0 for b in range(y.shape[0])]) for cls in range(
-            config["data_attrs"]["num_classes"])}
-        print("class_exist: {}".format(class_img_map))
-        print("class_exist: {}".format(class_img_map[0]))
-        print("class_img_map: {}".format(type(class_img_map[0])))
-        print("class_img_map: {}".format(np.sum(class_img_map[0])))
-        print("jaccard_matrix: {}".format(np.sum(jaccard_matrix[:, 0])))
-        # print("sum_check: {}".format(jnp.sum(logits[0, 0, 0, :])))
-
-        # Jaccard class-wise
-        jaccard_classwise = {v: np.sum(jaccard_matrix[:, v])/(class_img_map[v]*dims) if class_img_map[v] != 0.0 else 0.0
-                             for v in range(jaccard_matrix.shape[-1])}
-        print("ver: {} - jaccard_classwise: {}".format(ver, jaccard_classwise))
-        jaccard_overall = np.mean(
-            [v for v in list(jaccard_classwise.values()) if v != 0.0])
+        # Jaccard index
+        jaccard_classwise = {class_names[c]: np.array([jaccard_score(logits[n, :, :, c].flatten(), y_ohe[n, :, :, c].flatten())
+                                                       for n in range(y_ohe[..., c].shape[0])]) for c in range(classes)}
+        # print(jaccard_classwise)
+        jaccard_overall = [v[np.nonzero(v)].mean() for v in list(
+            jaccard_classwise.values()) if np.mean(v) != 0.0]
         print("ver: {} - jaccard_overall: {}".format(ver, jaccard_overall))
+        jaccard_overall = np.mean(jaccard_overall)
 
-        # Dice Coefficient
-        dice_classwise = {v: 2*np.sum(n[:, v])/(y_rsp[:, v].sum()+logits_rsp[:, v].sum())
-                          for v in range(jaccard_matrix.shape[-1])}
-        print("ver: {} - dice_classwise: {}".format(ver, dice_classwise))
-        dice_overall = np.mean(
-            [v for v in list(dice_classwise.values()) if v != 0.0])
+        # Dice coefficient
+        dice_classwise = {class_names[c]: np.array([dice_coeff(y_ohe, logits, c)
+                                                    for n in range(y_ohe[..., c].shape[0])]) for c in range(classes)}
+        # print(jaccard_classwise)
+        dice_overall = [v[np.nonzero(v)].mean() for v in list(
+            dice_classwise.values()) if np.mean(v) != 0.0]
         print("ver: {} - dice_overall: {}".format(ver, dice_overall))
+        dice_overall = np.mean(dice_overall)
 
     else:
         print("y: {} - y_hat: {}".format(y.shape, logits.shape))
@@ -81,7 +78,7 @@ def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, con
     # print("np.unique(y): {}".format(np.unique(y)))
     save_img_to_folder(config, x, y_ohe, logits, ver)
 
-    return jaccard_overall
+    return jaccard_overall, dice_overall
 
 
 # mean average precision

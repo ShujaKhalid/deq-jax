@@ -31,8 +31,10 @@ def evaluate_cls(rng, state, epoch, config, ds_dict, preproc, accuracy):
 
 
 def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, jaccard):
-    eval_trn = []
-    eval_tst = []
+    jac_trn = []
+    jac_val = []
+    dice_trn = []
+    dice_val = []
     log_policy = eval(config["logging"]["log_policy"])
     if ("train" in log_policy):
         ver = "train"
@@ -41,14 +43,15 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, jaccard):
             # print("y: {}".format(y))
             x_patch = jnp.array(preproc(x, config))
             # print("np.unique(y): {}".format(np.unique(y)))
-            trn_jac = jaccard(state['params'],
-                              rng,
-                              x_patch,
-                              x,
-                              y,
-                              ver,
-                              functools.partial(save_img_to_folder, i, epoch))
-            eval_trn.append(trn_jac)
+            jac, dice = jaccard(state['params'],
+                                rng,
+                                x_patch,
+                                x,
+                                y,
+                                ver,
+                                functools.partial(save_img_to_folder, i, epoch))
+            jac_trn.append(jac)
+            dice_trn.append(dice)
     if ("valid" in log_policy):
         for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
             ver = "val"
@@ -56,13 +59,16 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, jaccard):
             # print("y: {}".format(y))
             x_patch = jnp.array(preproc(x, config))
             # print("np.unique(y): {}".format(np.unique(y)))
-            test_jac = jaccard(state['params'],
-                               rng,
-                               x_patch,
-                               x,
-                               y,
-                               ver,
-                               functools.partial(save_img_to_folder, i, epoch))
-            eval_tst.append(test_jac)
-        print("epoch: {} - iter: {} - jac_trn {:.2f} - jac_tst: {:.2f}".format(epoch, i,
-                                                                               np.mean(eval_trn), np.mean(eval_tst)))
+            jac, dice = jaccard(state['params'],
+                                rng,
+                                x_patch,
+                                x,
+                                y,
+                                ver,
+                                functools.partial(save_img_to_folder, i, epoch))
+            jac_val.append(jac)
+            dice_val.append(dice)
+        print("epoch: {} - iter: {} - jac_trn {:.2f} - jac_val: {:.2f} - dice_trn {:.2f} - dice_val: {:.2f}".format(epoch, i,
+                                                                                                                    np.mean(jac_trn), np.mean(
+                                                                                                                        jac_val),
+                                                                                                                    np.mean(dice_trn), np.mean(dice_val)))
