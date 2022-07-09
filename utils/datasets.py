@@ -14,6 +14,43 @@ import utils.dataset as dataset
 torch.manual_seed(1993)
 
 CUSTOM_DATASETS = ['shakespeare_mini']
+CITYSCAPES_MAPPING = {
+    0: 0,
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+    6: 0,
+    7: 1,
+    8: 2,
+    9: 0,
+    10: 0,
+    11: 3,
+    12: 4,
+    13: 5,
+    14: 0,
+    15: 0,
+    16: 0,
+    17: 6,
+    18: 0,
+    19: 7,
+    20: 8,
+    21: 9,
+    22: 10,
+    23: 11,
+    24: 12,
+    25: 13,
+    26: 14,
+    27: 15,
+    28: 16,
+    29: 0,
+    30: 0,
+    31: 17,
+    32: 18,
+    33: 19,
+    -1: 0
+}
 
 
 class Datasets():
@@ -73,7 +110,11 @@ class Datasets():
 
             if (self.dataset_name == "VOCSegmentation"):
                 pic = transform_voc_friendly(pic)
-            pic = np.array(pic)
+            if (self.dataset_name == "Cityscapes"):
+                for key in CITYSCAPES_MAPPING:
+                    pic = np.array(pic)
+                    pic[pic == key] = CITYSCAPES_MAPPING[key]
+
             return np.array(pic, jnp.float32)
 
         def make_jax_friendly(pic):
