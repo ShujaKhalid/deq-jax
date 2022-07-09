@@ -4,10 +4,10 @@ import jax.numpy as jnp
 from sklearn.metrics import jaccard_score
 
 
-def dice_coeff(y_ohe, logits, v):
+def dice_coeff(logits, y_ohe):
     n = np.bitwise_and(y_ohe, logits)
     # u = np.bitwise_or(y_ohe, logits)
-    return 2*np.sum(n[:, :, :, v])/(y_ohe[:, :, :, v].sum()+logits[:, :, :, v].sum())
+    return 2*np.sum(n)/(y_ohe.sum()+logits.sum())
 
 
 # Jaccard Index
@@ -22,8 +22,10 @@ def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, con
                        'diningtable', 'dog', 'horse', 'motorbike', 'person',
                        'potted plant', 'sheep', 'sofa', 'train', 'tv/monitor']
     elif (config["data_attrs"]["dataset"] == "Cityscapes"):
-        class_names = ['bkgd', 'road', 'sidewalk', 'building', 'wall', 'fence', 'pole', 'traffic light', 'traffic sign',
-                       'vegetation', 'terrain', 'sky', 'person', 'rider', 'car', 'truck', 'bus', 'train', 'motorcycle', 'bicycle']
+        class_names = ['bkgd', 'road', 'sidewalk', 'building', 'wall',
+                       'fence', 'pole', 'traffic light', 'traffic sign',
+                       'vegetation', 'terrain', 'sky', 'person', 'rider',
+                       'car', 'truck', 'bus', 'train', 'motorcycle', 'bicycle']
         # IoU
         # logits_red = jnp.argmax(logits, axis=-1)
         # y_red = jnp.argmax(y, axis=-1)
@@ -35,6 +37,7 @@ def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, con
 
         # dims = y.shape[1] * y.shape[2]
         classes = config["data_attrs"]["num_classes"]
+        bs = config["model_attrs"]["batch_size"]
         logits = jax.nn.softmax(logits, axis=-1).astype(bool)
         y_ohe = jax.nn.one_hot(
             y, classes).astype(bool)
@@ -43,7 +46,7 @@ def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, con
 
         # Jaccard index
         jaccard_classwise = {class_names[c]: np.array([jaccard_score(logits[n, :, :, c].flatten(), y_ohe[n, :, :, c].flatten())
-                                                       for n in range(y_ohe[..., c].shape[0])]) for c in range(classes)}
+                                                       for n in range(bs)]) for c in range(classes)}
         # print(jaccard_classwise)
         jaccard_overall = [v[np.nonzero(v)].mean() for v in list(
             jaccard_classwise.values()) if np.mean(v) != 0.0]
@@ -51,8 +54,9 @@ def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, con
         jaccard_overall = np.mean(jaccard_overall)
 
         # Dice coefficient
-        dice_classwise = {class_names[c]: np.array([dice_coeff(y_ohe, logits, c)
-                                                    for n in range(y_ohe[..., c].shape[0])]) for c in range(classes)}
+        dice_classwise = {class_names[c]: np.array([dice_coeff(logits[n, :, :, c], y_ohe[n, :, :, c])
+                          for n in range(bs)])
+                          for c in range(classes)}
         # print(jaccard_classwise)
         dice_overall = [v[np.nonzero(v)].mean() for v in list(
             dice_classwise.values()) if np.mean(v) != 0.0]
