@@ -22,7 +22,8 @@ def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, con
                        'diningtable', 'dog', 'horse', 'motorbike', 'person',
                        'potted plant', 'sheep', 'sofa', 'train', 'tv/monitor']
     elif (config["data_attrs"]["dataset"] == "Cityscapes"):
-        class_names = []
+        class_names = ['bkgd', 'road', 'sidewalk', 'building', 'wall', 'fence', 'pole', 'traffic light', 'traffic sign',
+                       'vegetation', 'terrain', 'sky', 'person', 'rider', 'car', 'truck', 'bus', 'train', 'motorcycle', 'bicycle']
         # IoU
         # logits_red = jnp.argmax(logits, axis=-1)
         # y_red = jnp.argmax(y, axis=-1)

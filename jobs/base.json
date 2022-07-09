@@ -1,7 +1,7 @@
 {
     "mode": "seg",
     "logging": {
-        "eval_every": 2,
+        "eval_every": 100,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
@@ -11,7 +11,7 @@
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
-        "dataset": "Cityscapes",
+        "dataset": "VOCSegmentation",
         "transform": "None",
         "num_classes": 20
     },
@@ -41,16 +41,16 @@
             "dropout_rate": 0.1,
             "d_model": 128,
             "num_heads": 3,
-            "depth": 4,
+            "depth": 0,
             "latent_dims": "[256, 256, 256]",
             "resample_dim": 256
         }
     },
     "opt_attrs": {
-        "max_steps": 2,
+        "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.00025,
+        "learning_rate": 0.000025,
         "b1": 0.9,
         "b2": 0.99
     },

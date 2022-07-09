@@ -1,7 +1,7 @@
 {
     "mode": "seg",
     "logging": {
-        "eval_every": 100,
+        "eval_every": 200,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
@@ -13,7 +13,7 @@
         "dataset_path": "/scratch/ssd002/home/skhalid/",
         "dataset": "Cityscapes",
         "transform": "None",
-        "num_classes": 30
+        "num_classes": 20
     },
     "deq_attrs": {
         "deq_flag": "False",
