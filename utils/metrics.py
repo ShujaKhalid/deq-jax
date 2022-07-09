@@ -1,13 +1,19 @@
 import jax
 import numpy as np
 import jax.numpy as jnp
-from sklearn.metrics import jaccard_score
+#from sklearn.metrics import jaccard_score
 
 
 def dice_coeff(logits, y_ohe):
     n = np.bitwise_and(y_ohe, logits)
     # u = np.bitwise_or(y_ohe, logits)
     return 2*np.sum(n)/(y_ohe.sum()+logits.sum())
+
+
+def jaccard_score(logits, y_ohe):
+    n = np.bitwise_and(y_ohe, logits)
+    u = np.bitwise_or(y_ohe, logits)
+    return np.sum(n)/np.sum(u)
 
 
 # Jaccard Index
@@ -45,7 +51,7 @@ def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, con
               y.shape, logits.shape, y_ohe.shape))
 
         # Jaccard index
-        jaccard_classwise = {class_names[c]: np.array([jaccard_score(logits[n, :, :, c].flatten(), y_ohe[n, :, :, c].flatten())
+        jaccard_classwise = {class_names[c]: np.array([jaccard_score(logits[n, :, :, c], y_ohe[n, :, :, c])
                                                        for n in range(bs)]) for c in range(classes)}
         # print(jaccard_classwise)
         jaccard_overall = [v[np.nonzero(v)].mean() for v in list(
@@ -57,7 +63,7 @@ def jaccard(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, con
         dice_classwise = {class_names[c]: np.array([dice_coeff(logits[n, :, :, c], y_ohe[n, :, :, c])
                           for n in range(bs)])
                           for c in range(classes)}
-        # print(jaccard_classwise)
+        # print(dice_classwise)
         dice_overall = [v[np.nonzero(v)].mean() for v in list(
             dice_classwise.values()) if np.mean(v) != 0.0]
         print("ver: {} - dice_overall: {}".format(ver, dice_overall))
