@@ -134,6 +134,12 @@ class Datasets():
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
                         0.229, 0.224, 0.225])
                 ])
+            transform_mnist_friendly = transforms.Compose(
+                [
+                    transforms.Resize(32),
+                    # transforms.CenterCrop(32),
+                    transforms.ToTensor(),
+                ])
             transform_cityscapes_friendly = transforms.Compose(
                 [
                     transforms.Resize((256, 512)),
@@ -162,6 +168,10 @@ class Datasets():
 
             if (self.dataset_name == "CIFAR10"):
                 pic = transform_cifar10_friendly(pic)
+
+            if (self.dataset_name == "MNIST"):
+                pic = transform_mnist_friendly(pic)
+                pic = np.concatenate([pic, pic, pic])
 
             if (self.dataset_name == "Cityscapes"):
                 pic = transform_cityscapes_friendly(pic)
