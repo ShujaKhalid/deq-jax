@@ -23,7 +23,7 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 32,
+        "batch_size": 16,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 1,
@@ -52,9 +52,9 @@
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.000025,
+        "learning_rate": 0.00025,
         "b1": 0.9,
         "b2": 0.99
     },
-    "n_threads": 4
+    "n_threads": 8
 }

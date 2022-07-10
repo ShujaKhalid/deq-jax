@@ -115,6 +115,7 @@ class HeadSeg(hk.Module):
             x = self.conv2d_3(x)
             x = self.relu(x)
             x = self.interp(x)  # replace with transConv if necessary
+            #x = self.sigmoid(x)
 
         return x
 

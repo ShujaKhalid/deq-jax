@@ -121,24 +121,24 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
     headers = ["Class", "Jaccard Index"]
     classes = jac_trn[0].keys()
     units = len(jac_trn)
-    jaccard_trn = [[cls, np.mean([jac_trn[m][cls] for m in range(units)])]
+    jaccard_trn = [[cls, np.mean([jac_trn[m][cls] for m in range(units) if cls in list(jac_trn[m].keys())])]
                    for _, cls in enumerate(classes)]
     # Test - Jaccard
     classes = jac_val[0].keys()
     units = len(jac_val)
-    jaccard_val = [[cls, np.mean([jac_val[m][cls] for m in range(units)])]
+    jaccard_val = [[cls, np.mean([jac_val[m][cls] for m in range(units) if cls in list(jac_val[m].keys())])]
                    for _, cls in enumerate(classes)]
 
     # Train - Dice
     headers = ["Class", "Dice Co-efficient"]
     classes = dice_trn[0].keys()
     units = len(dice_trn)
-    dice_trn = [[cls, np.mean([dice_trn[m][cls] for m in range(units)])]
+    dice_trn = [[cls, np.mean([dice_trn[m][cls] for m in range(units) if cls in list(dice_trn[m].keys())])]
                 for _, cls in enumerate(classes)]
     # Test - Dice
     classes = dice_val[0].keys()
     units = len(dice_val)
-    dice_val = [[cls, np.mean([dice_val[m][cls] for m in range(units)])]
+    dice_val = [[cls, np.mean([dice_val[m][cls] for m in range(units) if cls in list(dice_val[m].keys())])]
                 for _, cls in enumerate(classes)]
 
     print("===> TRAINING <===")
