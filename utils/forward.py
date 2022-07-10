@@ -15,6 +15,7 @@ class Forward():
         self.solver = self.config["deq_attrs"]["solver"]
         self.num_classes = self.config["data_attrs"]["num_classes"]
         self.batch_size = config["model_attrs"]["batch_size"]
+
         if (self.mode == "seg"):
             self.num_layers = self.config["model_attrs"]["cv"]["num_layers"]
             self.dropout_rate = self.config["model_attrs"]["cv"]["dropout_rate"]
@@ -25,7 +26,7 @@ class Forward():
             self.latent_dims = eval(
                 self.config["model_attrs"]["cv"]["latent_dims"])
             self.resample_dim = self.config["model_attrs"]["cv"]["resample_dim"]
-        if (self.mode == "cls_trans"):
+        elif (self.mode == "cls_trans"):
             self.num_layers = self.config["model_attrs"]["cv"]["num_layers"]
             self.dropout_rate = self.config["model_attrs"]["cv"]["dropout_rate"]
             self.d_model = self.config["model_attrs"]["cv"]["d_model"]

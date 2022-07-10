@@ -1,19 +1,21 @@
 {
-    "mode": "cls_trans",
+    "mode": "seg",
     "logging": {
-        "eval_every": 1,
+        "eval_every": 10,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
         "log_every": 10,
-        "save_imgs_step": 5
+        "save_imgs_step": 5,
+        "trn_set": 5,
+        "tst_set": 5
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
-        "dataset": "CIFAR10",
+        "dataset": "Cityscapes",
         "transform": "None",
-        "num_classes": 10
+        "num_classes": 20
     },
     "deq_attrs": {
         "deq_flag": "False",
@@ -21,18 +23,18 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 4096,
+        "batch_size": 32,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
             "patch_size": 8,
-            "scales": "[]",
-            "num_heads": 10,
+            "scales": "[2,4,8,16,32]",
+            "num_heads": 3,
             "depth": 1,
-            "latent_dims": "[64, 64, 64]",
-            "resample_dim": 64
+            "latent_dims": "[256, 256, 256]",
+            "resample_dim": 256
         },
         "lm": {
             "arch": "mdeqformer",
@@ -50,7 +52,7 @@
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.00025,
+        "learning_rate": 0.000025,
         "b1": 0.9,
         "b2": 0.99
     },

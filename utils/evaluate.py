@@ -72,9 +72,12 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
     dice_trn = []
     dice_val = []
     log_policy = eval(config["logging"]["log_policy"])
+    trn_set_policy = config["logging"]["trn_set"]
+    tst_set_policy = config["logging"]["tst_set"]
+
     if ("train" in log_policy):
         ver = "train"
-        for i, (x, y) in enumerate(tqdm(ds_dict['dl_trn'])):
+        for i, (x, y) in enumerate(1, tqdm(ds_dict['dl_trn'])):
             # print("x (before preproc): {}".format(x))
             # print("y: {}".format(y))
             x_patch = jnp.array(preproc(x, config))
@@ -88,8 +91,12 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
                                     functools.partial(save_img_to_folder, i, epoch))
             jac_trn.append(jac)
             dice_trn.append(dice)
+
+            if (i == trn_set_policy):
+                break
+
     if ("valid" in log_policy):
-        for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
+        for i, (x, y) in enumerate(1, tqdm(ds_dict['dl_tst'])):
             ver = "val"
             # print("x (before preproc): {}".format(x))
             # print("y: {}".format(y))
@@ -104,7 +111,48 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
                                     functools.partial(save_img_to_folder, i, epoch))
             jac_val.append(jac)
             dice_val.append(dice)
-        print("epoch: {} - iter: {} - jac_trn {:.2f} - jac_val: {:.2f} - dice_trn {:.2f} - dice_val: {:.2f}".format(epoch, i,
-                                                                                                                    np.mean(jac_trn), np.mean(
-                                                                                                                        jac_val),
-                                                                                                                    np.mean(dice_trn), np.mean(dice_val)))
+
+            if (i == tst_set_policy):
+                break
+
+    # Train - Jaccard
+    headers = ["Class", "Jaccard Index"]
+    classes = jac_trn[0].keys()
+    units = len(jac_trn)
+    jaccard_trn = [[cls, np.mean([jac_trn[m][cls] for m in range(units)])]
+                   for _, cls in enumerate(classes)]
+    # Test - Jaccard
+    classes = jac_val[0].keys()
+    units = len(jac_val)
+    jaccard_val = [[cls, np.mean([jac_val[m][cls] for m in range(units)])]
+                   for _, cls in enumerate(classes)]
+
+    # Train - Dice
+    headers = ["Class", "Dice Co-efficient"]
+    classes = dice_trn[0].keys()
+    units = len(dice_trn)
+    dice_trn = [[cls, np.mean([dice_trn[m][cls] for m in range(units)])]
+                for _, cls in enumerate(classes)]
+    # Test - Dice
+    classes = dice_val[0].keys()
+    units = len(dice_val)
+    dice_val = [[cls, np.mean([dice_val[m][cls] for m in range(units)])]
+                for _, cls in enumerate(classes)]
+
+    print("===> TRAINING <===")
+    print(tabulate(jaccard_trn, headers, tablefmt="fancy_grid"))
+    print(tabulate(jaccard_val, headers, tablefmt="fancy_grid"))
+    print("===> VALIDATION <===")
+    print(tabulate(dice_trn, headers, tablefmt="fancy_grid"))
+    print(tabulate(dice_val, headers, tablefmt="fancy_grid"))
+
+    # print(tabulate(table_trn, headers, tablefmt="fancy_grid"))
+    print("epoch: {} - iter: {} - jac_trn {:.2f} - jac_val: {:.2f} - dice_trn {:.2f} - dice_val: {:.2f}".format(epoch, i,
+                                                                                                                np.mean(np.array(jaccard_trn)[
+                                                                                                                        :, 1].astype(float)),
+                                                                                                                np.mean(np.array(jaccard_val)[
+                                                                                                                        :, 1].astype(float)),
+                                                                                                                np.mean(np.array(dice_trn)[
+                                                                                                                        :, 1].astype(float)),
+                                                                                                                np.mean(np.array(dice_val)[
+                                                                                                                        :, 1].astype(float)),))

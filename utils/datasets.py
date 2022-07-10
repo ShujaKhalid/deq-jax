@@ -110,12 +110,15 @@ class Datasets():
 
             if (self.dataset_name == "VOCSegmentation"):
                 pic = transform_voc_friendly(pic)
+                np.array(pic, jnp.float32)
             if (self.dataset_name == "Cityscapes"):
                 for key in CITYSCAPES_MAPPING:
                     pic = np.array(pic)
                     pic[pic == key] = CITYSCAPES_MAPPING[key]
+                # print(np.unique(pic))
+                pic = np.array(pic, np.float32)
 
-            return np.array(pic, jnp.float32)
+            return pic
 
         def make_jax_friendly(pic):
             transform_imagenet_friendly = transforms.Compose(
@@ -197,7 +200,7 @@ class Datasets():
         elif (self.dataset_name == "Cityscapes"):
             return getattr(torchvision.datasets, self.dataset_name)(
                 root=self.dataset_path+"cityscapes",
-                split="train" if train else "test",
+                split="train" if train else "val",
                 # ["coarse", "fine"]
                 mode="fine",
                 # ["instance", "semantic", "polygon", "color"]
