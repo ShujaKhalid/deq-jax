@@ -77,13 +77,14 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
 
     if ("train" in log_policy):
         ver = "train"
-        for i, (x, y) in enumerate(1, tqdm(ds_dict['dl_trn'])):
+        for i, (x, y) in enumerate(tqdm(ds_dict['dl_trn'])):
             # print("x (before preproc): {}".format(x))
             # print("y: {}".format(y))
             x_patch = jnp.array(preproc(x, config))
             # print("np.unique(y): {}".format(np.unique(y)))
             jac, dice = seg_metrics(state['params'],
                                     rng,
+                                    i,
                                     x_patch,
                                     x,
                                     y,
@@ -96,7 +97,7 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
                 break
 
     if ("valid" in log_policy):
-        for i, (x, y) in enumerate(1, tqdm(ds_dict['dl_tst'])):
+        for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
             ver = "val"
             # print("x (before preproc): {}".format(x))
             # print("y: {}".format(y))
@@ -104,6 +105,7 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
             # print("np.unique(y): {}".format(np.unique(y)))
             jac, dice = seg_metrics(state['params'],
                                     rng,
+                                    i,
                                     x_patch,
                                     x,
                                     y,

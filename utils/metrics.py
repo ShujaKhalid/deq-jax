@@ -20,7 +20,7 @@ def jaccard_score(logits, y_ohe):
 
 # Jaccard Index
 # IoU calculation summed over all classes
-def seg_metrics(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn, config):
+def seg_metrics(params, rng, i, x_patch, x, y, ver, save_img_to_folder, forward_fn, config):
     logits = jax.jit(forward_fn.apply)(params, rng, data={
         'obs': x_patch, 'target': y})
 
@@ -69,7 +69,8 @@ def seg_metrics(params, rng, x_patch, x, y, ver, save_img_to_folder, forward_fn,
             dice_classwise.values())) if np.mean(v) != 0.0}
 
     # IMPORTANT
-    #save_img_to_folder(config, x, y_ohe, logits, ver)
+    if (i % config["logging"]["save_imgs_step"] == 0):
+        save_img_to_folder(config, x, y_ohe, logits, ver)
 
     return jaccard_overall, dice_overall
 
