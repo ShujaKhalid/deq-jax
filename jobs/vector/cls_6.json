@@ -10,7 +10,7 @@
         "save_imgs_step": 5
     },
     "data_attrs": {
-        "dataset_path": "/scratch/ssd001/datasets/imagenet/",
+        "dataset_path": "/scratch/ssd002/home/skhalid/imagenet/",
         "dataset": "ImageNet",
         "transform": "None",
         "num_classes": 1000
