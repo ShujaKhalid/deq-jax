@@ -31,8 +31,8 @@
             "scales": "[]",
             "num_heads": 3,
             "depth": 1,
-            "latent_dims": "[256, 256, 256]",
-            "resample_dim": 256
+            "latent_dims": "[64, 64, 64]",
+            "resample_dim": 64
         },
         "lm": {
             "arch": "mdeqformer",
@@ -50,7 +50,7 @@
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.005,
+        "learning_rate": 0.0025,
         "b1": 0.9,
         "b2": 0.99
     },
