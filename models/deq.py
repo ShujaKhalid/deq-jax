@@ -22,7 +22,7 @@ def deq(params: dict, solver: int, mode: int, rng, x: jnp.ndarray, f: Callable, 
                       params,
                       rng,
                       x,
-                      *args
+                      None
                       )
 
     # TODO

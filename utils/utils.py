@@ -145,8 +145,8 @@ def run(config, x, model):
             model.init)(rng, x)
         if (config["deq_attrs"]["deq_flag"] == "True"):
             # Define a callable function for ease of access downstream
-            def f(params, state, rng, x):
-                return model.apply(params, state, rng, x)
+            def f(params, rng, x):
+                return model.apply(params, rng, x)
 
             z_star = deq(
                 params,

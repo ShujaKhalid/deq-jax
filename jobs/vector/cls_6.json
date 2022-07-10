@@ -1,18 +1,19 @@
 {
-    "mode": "seg",
+    "mode": "cls_trans",
     "logging": {
-        "eval_every": 20,
+        "eval_every": 1,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
-        "log_policy": "[\"valid\"]",
+        "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
-        "log_every": 10
+        "log_every": 10,
+        "save_imgs_step": 5
     },
     "data_attrs": {
         "dataset_path": "/scratch/ssd002/home/skhalid/",
-        "dataset": "VOCSegmentation",
+        "dataset": "CIFAR10",
         "transform": "None",
-        "num_classes": 20
+        "num_classes": 10
     },
     "deq_attrs": {
         "deq_flag": "False",
@@ -20,25 +21,27 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 6,
+        "batch_size": 4096,
         "cv": {
+            "arch": "mdeqformer",
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
             "patch_size": 8,
+            "scales": "[2]",
             "num_heads": 3,
             "depth": 1,
-            "latent_dims": "[256, 256, 256]",
-            "resample_dim": 256
+            "latent_dims": "[128, 128, 128]",
+            "resample_dim": 128
         },
         "lm": {
+            "arch": "mdeqformer",
             "sequence_length": 64,
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
-            "patch_size": 8,
             "num_heads": 3,
-            "depth": 4,
+            "depth": 0,
             "latent_dims": "[256, 256, 256]",
             "resample_dim": 256
         }
@@ -47,9 +50,9 @@
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.00025,
+        "learning_rate": 0.000025,
         "b1": 0.9,
         "b2": 0.99
     },
-    "n_threads": 1
+    "n_threads": 4
 }
