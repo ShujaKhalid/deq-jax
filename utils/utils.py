@@ -332,10 +332,10 @@ def get_outputs(x, config):
         head_dep = HeadDepth(resample_dim, patch_size)
         x = head_dep(x)
     elif (mode == "cls" or mode == "cls_trans"):
+        # z_star = jnp.mean(z_star[:, 0])
         x = jnp.mean(x, axis=1)
         x = hk.Linear(resample_dim)(x)
         x = jax.nn.gelu(x)
-        x = hk.BatchNorm()(x)  # TODO: assess viability
         x = hk.Linear(num_classes)(x)
     else:
         raise Exception("get_outputs incorrectly selected")

@@ -25,7 +25,6 @@ class FeedForward(hk.Module):
         dim = x.shape[-1]  # Original input dimension of the patches
         x = hk.Linear(self.latent_dim)(x)  # self.latent_dims[1]
         x = jax.nn.gelu(x)
-        x = hk.BatchNorm()(x)  # TODO: Assess viability
         x = hk.Linear(dim)(x)
         return x
 

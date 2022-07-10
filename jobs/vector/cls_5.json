@@ -11,9 +11,9 @@
     },
     "data_attrs": {
         "dataset_path": "/scratch/ssd002/home/skhalid/",
-        "dataset": "CIFAR10",
+        "dataset": "ImageNet",
         "transform": "None",
-        "num_classes": 10
+        "num_classes": 1000
     },
     "deq_attrs": {
         "deq_flag": "True",

@@ -11,9 +11,9 @@
     },
     "data_attrs": {
         "dataset_path": "/scratch/ssd002/home/skhalid/",
-        "dataset": "CIFAR10",
+        "dataset": "ImageNet",
         "transform": "None",
-        "num_classes": 10
+        "num_classes": 1000
     },
     "deq_attrs": {
         "deq_flag": "False",
@@ -31,7 +31,7 @@
             "scales": "[2]",
             "num_heads": 3,
             "depth": 1,
-            "latent_dims": "[128, 128, 128]",
+            "latent_dims": "[512, 512, 512]",
             "resample_dim": 128
         },
         "lm": {
