@@ -11,9 +11,9 @@
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
-        "dataset": "ImageNet",
+        "dataset": "CIFAR10",
         "transform": "None",
-        "num_classes": 1000
+        "num_classes": 10
     },
     "deq_attrs": {
         "deq_flag": "False",
@@ -21,7 +21,7 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 512,
+        "batch_size": 4096,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 1,
@@ -29,10 +29,10 @@
             "d_model": 128,
             "patch_size": 8,
             "scales": "[]",
-            "num_heads": 3,
+            "num_heads": 10,
             "depth": 1,
-            "latent_dims": "[256, 256, 256]",
-            "resample_dim": 256
+            "latent_dims": "[64, 64, 64]",
+            "resample_dim": 64
         },
         "lm": {
             "arch": "mdeqformer",
@@ -50,7 +50,7 @@
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.0025,
+        "learning_rate": 0.00025,
         "b1": 0.9,
         "b2": 0.99
     },
