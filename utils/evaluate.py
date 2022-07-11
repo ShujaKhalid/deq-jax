@@ -118,7 +118,6 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
                 break
 
     # Train - Jaccard
-    headers = ["Class", "Jaccard Index"]
     classes = jac_trn[0].keys()
     units = len(jac_trn)
     jaccard_trn = [[cls, np.mean([jac_trn[m][cls] for m in range(units) if cls in list(jac_trn[m].keys())])]
@@ -130,7 +129,6 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
                    for _, cls in enumerate(classes)]
 
     # Train - Dice
-    headers = ["Class", "Dice Co-efficient"]
     classes = dice_trn[0].keys()
     units = len(dice_trn)
     dice_trn = [[cls, np.mean([dice_trn[m][cls] for m in range(units) if cls in list(dice_trn[m].keys())])]
@@ -142,11 +140,15 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
                 for _, cls in enumerate(classes)]
 
     print("===> TRAINING <===")
-    print(tabulate(jaccard_trn, headers, tablefmt="fancy_grid"))
-    print(tabulate(jaccard_val, headers, tablefmt="fancy_grid"))
+    print(tabulate(jaccard_trn, [
+          "Class", "Jaccard Index"], tablefmt="fancy_grid"))
+    print(
+        tabulate(dice_trn, ["Class", "Dice Co-efficient"], tablefmt="fancy_grid"))
     print("===> VALIDATION <===")
-    print(tabulate(dice_trn, headers, tablefmt="fancy_grid"))
-    print(tabulate(dice_val, headers, tablefmt="fancy_grid"))
+    print(tabulate(jaccard_val, [
+          "Class", "Jaccard Index"], tablefmt="fancy_grid"))
+    print(
+        tabulate(dice_val, ["Class", "Dice Co-efficient"], tablefmt="fancy_grid"))
 
     # print(tabulate(table_trn, headers, tablefmt="fancy_grid"))
     print("epoch: {} - iter: {} - jac_trn {:.2f} - jac_val: {:.2f} - dice_trn {:.2f} - dice_val: {:.2f}".format(epoch, i,

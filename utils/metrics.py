@@ -30,10 +30,19 @@ def seg_metrics(params, rng, i, x_patch, x, y, ver, save_img_to_folder, forward_
                        'diningtable', 'dog', 'horse', 'motorbike', 'person',
                        'potted plant', 'sheep', 'sofa', 'train', 'tv/monitor']
     elif (config["data_attrs"]["dataset"] == "Cityscapes"):
-        class_names = ['bkgd', 'road', 'sidewalk', 'building', 'wall',
-                       'fence', 'pole', 'traffic light', 'traffic sign',
-                       'vegetation', 'terrain', 'sky', 'person', 'rider',
-                       'car', 'truck', 'bus', 'train', 'motorcycle', 'bicycle']
+        if (config["data_attrs"]["num_classes"] == 20):
+            class_names = ['bkgd', 'road', 'sidewalk', 'building', 'wall',
+                           'fence', 'pole', 'traffic light', 'traffic sign',
+                           'vegetation', 'terrain', 'sky', 'person', 'rider',
+                           'car', 'truck', 'bus', 'train', 'motorcycle', 'bicycle']
+        else:
+            class_names = ['unlabeled', 'ego vehicle', 'rectification border', 'out of roi', 'static',
+                           'dynamic', 'ground', 'road', 'sidewalk',
+                           'parking', 'rail track', 'building', 'wall', 'fence',
+                           'guard rail', 'bridge', 'tunnel', 'pole', 'polegroup', 'traffic light',
+                           'traffic sign', 'vegetation', 'terrain', 'sky', 'person', 'rider',
+                           'car', 'truck', 'bus', 'caravan', 'trailer', 'train',
+                           'motorcycle', 'bicycle', 'license plate']
     elif (config["data_attrs"]["dataset"] == "MNIST"):
         class_names = ['1', '2', '3', '4', '5',
                        '6', '7', '8', '9']
@@ -49,20 +58,22 @@ def seg_metrics(params, rng, i, x_patch, x, y, ver, save_img_to_folder, forward_
         # dims = y.shape[1] * y.shape[2]
         classes = config["data_attrs"]["num_classes"]
         bs = config["model_attrs"]["batch_size"]
-        logits = jax.nn.softmax(logits, axis=-1).astype(bool)
+        logits = jax.nn.softmax(logits, axis=-1)
         y_ohe = jax.nn.one_hot(
-            y, classes).astype(bool)
+            y, classes)
+        logits_bool = logits.astype(bool)
+        y_ohe_bool = y_ohe.astype(bool)
         # print("ver: {} - y: {} - y_hat: {} - y_ohe: {}".format(ver,
         #      y.shape, logits.shape, y_ohe.shape))
 
         # Jaccard index
-        jaccard_classwise = {class_names[c]: np.array([jaccard_score(logits[n, :, :, c], y_ohe[n, :, :, c])
+        jaccard_classwise = {class_names[c]: np.array([jaccard_score(logits_bool[n, :, :, c], y_ohe_bool[n, :, :, c])
                                                        for n in range(bs)]) for c in range(classes)}
         jaccard_overall = {class_names[i]: v[np.nonzero(v)].mean() for i, v in enumerate(list(
             jaccard_classwise.values())) if np.mean(v) != 0.0}
 
         # Dice coefficient
-        dice_classwise = {class_names[c]: np.array([dice_coeff(logits[n, :, :, c], y_ohe[n, :, :, c])
+        dice_classwise = {class_names[c]: np.array([dice_coeff(logits_bool[n, :, :, c], y_ohe_bool[n, :, :, c])
                           for n in range(bs)])
                           for c in range(classes)}
         dice_overall = {class_names[i]: v[np.nonzero(v)].mean() for i, v in enumerate(list(

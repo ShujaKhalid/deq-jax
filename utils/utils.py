@@ -64,11 +64,17 @@ def save_img_to_folder(epoch, i, config, x, y, y_hat, ver):
     if (len(y.shape) == 4 and epoch % config["logging"]["save_imgs_step"] == 0):
         for j in range(y.shape[-1]):
             img_seg = (np.asarray(y[-1, :, :, j]) * 255).astype(np.uint8)
+            # print("y[-1, :, :, j]: {}".format(np.unique(y[-1, :, :, j])))
+            # print(
+            #     "y[-1, :, :, j] * 255: {}".format(np.unique(y[-1, :, :, j] * 255)))
             img_seg = Image.fromarray(img_seg)
             img_seg.save(save_loc+str(ver)+"_" +
                          str(epoch)+"_"+str(j)+"_seg.png")
 
             img_pred = (np.asarray(y_hat[-1, :, :, j]) * 255).astype(np.uint8)
+            # print("y_hat[-1, :, :, j]: {}".format(np.unique(y_hat[-1, :, :, j])))
+            # print(
+            #     "y_hat[-1, :, :, j] * 255: {}".format(np.unique(y_hat[-1, :, :, j] * 255)))
             img_pred = Image.fromarray(img_pred)
             img_pred.save(save_loc+str(ver)+"_" +
                           str(epoch)+"_"+str(j)+"_pred.png")
