@@ -18,7 +18,7 @@
         "num_classes": 20
     },
     "deq_attrs": {
-        "deq_flag": "True",
+        "deq_flag": "False",
         "max_iter": 10,
         "solver": 0
     },
