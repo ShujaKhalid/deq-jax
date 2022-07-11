@@ -52,7 +52,7 @@
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.00025,
+        "learning_rate": 0.000025,
         "b1": 0.9,
         "b2": 0.99
     },

@@ -13,28 +13,28 @@
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
-        "dataset": "VOCSegmentation",
+        "dataset": "Cityscapes",
         "transform": "None",
         "num_classes": 20
     },
     "deq_attrs": {
-        "deq_flag": "False",
+        "deq_flag": "True",
         "max_iter": 10,
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 32,
+        "batch_size": 8,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
-            "patch_size": 8,
+            "patch_size": 32,
             "scales": "[]",
-            "num_heads": 16,
+            "num_heads": 3,
             "depth": 1,
-            "latent_dims": "[256, 256, 256]",
-            "resample_dim": 256
+            "latent_dims": "[3072, 3072, 3072]",
+            "resample_dim": 1024
         },
         "lm": {
             "arch": "mdeqformer",
@@ -43,18 +43,18 @@
             "dropout_rate": 0.1,
             "d_model": 128,
             "num_heads": 3,
-            "depth": 0,
-            "latent_dims": "[0, 0, 0]",
-            "resample_dim": 0
+            "depth": 4,
+            "latent_dims": "[256, 256, 256]",
+            "resample_dim": 256
         }
     },
     "opt_attrs": {
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.000025,
+        "learning_rate": 0.00025,
         "b1": 0.9,
         "b2": 0.99
     },
-    "n_threads": 1
+    "n_threads": 4
 }
