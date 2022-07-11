@@ -157,8 +157,8 @@ class CheckpointingUpdater:
             checkpoint_state = jax.device_get(state)
             logging.info('Serializing experiment state to %s', path)
             # TODO: dont add to the checkpoint
-            with open(path, 'wb') as f:
-                pickle.dump(checkpoint_state, f)
+            # with open(path, 'wb') as f:
+            #     pickle.dump(checkpoint_state, f)
 
         state, out = self._inner.update(state, data)
         return state, out
