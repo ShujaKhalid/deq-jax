@@ -63,7 +63,9 @@ def seg_metrics(params, rng, i, x_patch, x, y, ver, save_img_to_folder, forward_
         # dims = y.shape[1] * y.shape[2]
         classes = config["data_attrs"]["num_classes"]
         bs = config["model_attrs"]["batch_size"]
-        logits = jax.nn.softmax(logits, axis=-1).round()
+        logits = jax.nn.softmax(logits, axis=-1)
+        # TODO: required for downstream calculations
+        logits = jnp.where(logits < 0.1, 0, 1)
         y_ohe = jax.nn.one_hot(
             y, classes)
         # print("logits.min(): {}".format(logits.min()))
@@ -77,15 +79,15 @@ def seg_metrics(params, rng, i, x_patch, x, y, ver, save_img_to_folder, forward_
         jaccard_classwise = {class_names[c]: np.array([jaccard_score(logits_bool[n, :, :, c], y_ohe_bool[n, :, :, c], class_names[c])
                                                        for n in range(bs)]) for c in range(classes)}
         # print(jaccard_classwise)
-        jaccard_overall = {class_names[i]: v[np.nonzero(v)].mean() for i, v in enumerate(list(
-            jaccard_classwise.values())) if np.mean(v) != 0.0}
+        jaccard_overall = {class_names[i]: v[np.nonzero(v)].mean() if v[np.nonzero(v)].mean() == v[np.nonzero(v)].mean() else 0.0 for i, v in enumerate(list(
+            jaccard_classwise.values())) if np.mean(v) != 0 and v[np.nonzero(v)].mean() == v[np.nonzero(v)].mean()}
 
         # Dice coefficient
         dice_classwise = {class_names[c]: np.array([dice_coeff(logits_bool[n, :, :, c], y_ohe_bool[n, :, :, c])
                           for n in range(bs)])
                           for c in range(classes)}
-        dice_overall = {class_names[i]: v[np.nonzero(v)].mean() for i, v in enumerate(list(
-            dice_classwise.values())) if np.mean(v) != 0.0}
+        dice_overall = {class_names[i]: v[np.nonzero(v)].mean() if v[np.nonzero(v)].mean() == v[np.nonzero(v)].mean() else 0.0 for i, v in enumerate(list(
+            dice_classwise.values())) if np.mean(v) != 0 and v[np.nonzero(v)].mean() == v[np.nonzero(v)].mean()}
 
     # IMPORTANT
     if (i % config["logging"]["save_imgs_step"] == 0):
