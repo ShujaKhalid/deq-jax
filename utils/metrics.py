@@ -12,9 +12,14 @@ def dice_coeff(logits, y_ohe):
     return 2*np.sum(n)/(y_ohe.sum()+logits.sum())
 
 
-def jaccard_score(logits, y_ohe):
+def jaccard_score(logits, y_ohe, cls):
     n = np.bitwise_and(y_ohe, logits)
     u = np.bitwise_or(y_ohe, logits)
+    # print("cls: {}".format(cls))
+    # print("logits: {}/131072".format(logits.sum()))
+    # print("y_ohe: {}/131072".format(y_ohe.sum()))
+    # print("n: {}/131072".format(n.sum()))
+    # print("u: {}/131072".format(u.sum()))
     return np.sum(n)/np.sum(u)
 
 
@@ -58,17 +63,20 @@ def seg_metrics(params, rng, i, x_patch, x, y, ver, save_img_to_folder, forward_
         # dims = y.shape[1] * y.shape[2]
         classes = config["data_attrs"]["num_classes"]
         bs = config["model_attrs"]["batch_size"]
-        logits = jax.nn.softmax(logits, axis=-1)
+        logits = jax.nn.softmax(logits, axis=-1).round()
         y_ohe = jax.nn.one_hot(
             y, classes)
+        # print("logits.min(): {}".format(logits.min()))
+        # print("logits.max(): {}".format(logits.max()))
         logits_bool = logits.astype(bool)
         y_ohe_bool = y_ohe.astype(bool)
         # print("ver: {} - y: {} - y_hat: {} - y_ohe: {}".format(ver,
         #      y.shape, logits.shape, y_ohe.shape))
 
         # Jaccard index
-        jaccard_classwise = {class_names[c]: np.array([jaccard_score(logits_bool[n, :, :, c], y_ohe_bool[n, :, :, c])
+        jaccard_classwise = {class_names[c]: np.array([jaccard_score(logits_bool[n, :, :, c], y_ohe_bool[n, :, :, c], class_names[c])
                                                        for n in range(bs)]) for c in range(classes)}
+        # print(jaccard_classwise)
         jaccard_overall = {class_names[i]: v[np.nonzero(v)].mean() for i, v in enumerate(list(
             jaccard_classwise.values())) if np.mean(v) != 0.0}
 

@@ -85,7 +85,7 @@ class HeadSeg(hk.Module):
         if (self.dataset == "VOCSegmentation"):
             self.interp = Interpolate(scale_factor=4)
         else:
-            self.interp = Interpolate(scale_factor=16)
+            self.interp = Interpolate(scale_factor=8)
         # self.interp = hk.Conv2DTranspose(self.num_classes,
         #                                  kernel_shape=4,
         #                                  stride=1,
