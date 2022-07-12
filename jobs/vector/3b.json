@@ -8,8 +8,8 @@
         "log": "False",
         "log_every": 10,
         "save_imgs_step": 5,
-        "trn_set": 5,
-        "tst_set": 5
+        "trn_set": 15,
+        "tst_set": 15
     },
     "data_attrs": {
         "dataset_path": "/scratch/ssd002/home/skhalid/",
@@ -29,12 +29,13 @@
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
-            "patch_size": 32,
-            "scales": "[]",
-            "num_heads": 3,
+            "patch_size": 8,
+            "scales": "[2,4,8,16]",
+            "num_heads": 20,
             "depth": 1,
-            "latent_dims": "[3072, 3072, 3072]",
-            "resample_dim": 1024
+            "latent_dims": "[1024, 1024, 1024]",
+            "resample_dim": 65536,
+            "transpose": "False"
         },
         "lm": {
             "arch": "mdeqformer",
@@ -42,10 +43,10 @@
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
-            "num_heads": 3,
-            "depth": 4,
-            "latent_dims": "[256, 256, 256]",
-            "resample_dim": 256
+            "num_heads": 0,
+            "depth": 0,
+            "latent_dims": "[0, 0, 0]",
+            "resample_dim": 0
         }
     },
     "opt_attrs": {

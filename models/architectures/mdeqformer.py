@@ -68,6 +68,7 @@ class HeadSeg(hk.Module):
         self.kernel_size = 3
         self.patch_size = patch_size
         self.dataset = config["data_attrs"]["dataset"]
+        self.transpose = eval(config["model_attrs"]["cv"]["transpose"])
         self.fc1 = hk.Linear(self.resample_dim)
         self.conv2d_1 = hk.Conv2D(self.num_classes,
                                   kernel_shape=self.kernel_size,
@@ -82,7 +83,7 @@ class HeadSeg(hk.Module):
         #                           stride=1,
         #                           padding=[2, 2])
         # self.bn = hk.BatchNorm()
-        self.transConv2D = hk.Conv2DTranspose(self.num_classes)
+        self.transConv2D = hk.Conv2DTranspose(self.num_classes, kernel_shape=3)
         self.interp = Interpolate(
             scale_factor=int((256*2)/np.sqrt(self.resample_dim)))  # TODO
         # self.interp = hk.Conv2DTranspose(self.num_classes,
@@ -90,32 +91,26 @@ class HeadSeg(hk.Module):
         #                                  stride=1,
         #                                  output_shape=[1024, 2048])
         self.relu = jax.nn.relu
+        self.gelu = jax.nn.gelu
         self.sigmoid = jax.nn.sigmoid
 
     def __call__(self, x):
         # print("x.shape (before patchify): {}".format(x.shape))
-        if (self.dataset == "VOCSegmentation"):
-            x = self.fc1(x)
-            x = u.unpatchify(x)
-            x = self.conv2d_1(x)
-            x = self.relu(x)
-            # x = self.conv2d_2(x)
-            # x = self.relu(x)
-            # x = self.conv2d_3(x)
-            # x = self.relu(x)
-            x = self.interp(x)  # replace with transConv if necessary
-        else:
-            x = self.fc1(x)
-            x = u.unpatchify(x)
-            x = self.conv2d_1(x)
-            x = self.relu(x)
-            # x = self.conv2d_2(x)
-            # x = self.relu(x)
-            # x = self.conv2d_3(x)
-            # x = self.relu(x)
+
+        x = self.fc1(x)
+        x = u.unpatchify(x)
+        x = self.conv2d_1(x)
+        x = self.relu(x)
+        # x = self.conv2d_2(x)
+        # x = self.relu(x)
+        # x = self.conv2d_3(x)
+        # x = self.relu(x)
+        if (self.transpose):
             x = self.transConv2D(x)
-            # x = self.interp(x)  # replace with transConv if necessary
-            #x = self.sigmoid(x)
+            x = self.relu(x)
+        else:
+            x = self.interp(x)  # replace with transConv if necessary
+        #x = self.sigmoid(x)
 
         return x
 

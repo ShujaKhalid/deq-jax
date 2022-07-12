@@ -1,18 +1,18 @@
 {
     "mode": "seg",
     "logging": {
-        "eval_every": 1,
+        "eval_every": 5,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
         "log_every": 10,
         "save_imgs_step": 5,
-        "trn_set": 5,
-        "tst_set": 7
+        "trn_set": 15,
+        "tst_set": 15
     },
     "data_attrs": {
-        "dataset_path": "/home/skhalid/Documents/datalake/",
+        "dataset_path": "/scratch/ssd002/home/skhalid/",
         "dataset": "Cityscapes",
         "transform": "None",
         "num_classes": 20
@@ -20,10 +20,10 @@
     "deq_attrs": {
         "deq_flag": "False",
         "max_iter": 10,
-        "solver": 0
+        "solver": 1
     },
     "model_attrs": {
-        "batch_size": 2,
+        "batch_size": 8,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 1,
@@ -34,8 +34,8 @@
             "num_heads": 20,
             "depth": 1,
             "latent_dims": "[1024, 1024, 1024]",
-            "resample_dim": 262144,
-            "transpose": "True"
+            "resample_dim": 65536,
+            "transpose": "False"
         },
         "lm": {
             "arch": "mdeqformer",
