@@ -19,8 +19,8 @@ class Interpolate(hk.Module):
         x = self.interp(
             x,
             shape=(x.shape[0],
-                   x.shape[1]*self.scale_factor,
-                   x.shape[2]*self.scale_factor,
+                   int(x.shape[1]*self.scale_factor),
+                   int(x.shape[2]*self.scale_factor),
                    x.shape[3]),
             method=self.method,
         )
@@ -61,7 +61,7 @@ class HeadDepth(hk.Module):
 
 
 class HeadSeg(hk.Module):
-    def __init__(self, resample_dim, patch_size, config, num_classes=2):
+    def __init__(self, input_dims, resample_dim, patch_size, config, num_classes=2):
         super(HeadSeg, self).__init__()
         self.resample_dim = resample_dim
         self.num_classes = num_classes
@@ -69,7 +69,7 @@ class HeadSeg(hk.Module):
         self.patch_size = patch_size
         self.dataset = config["data_attrs"]["dataset"]
         self.fc1 = hk.Linear(self.resample_dim)
-        self.conv2d_1 = hk.Conv2D(self.resample_dim // 2,
+        self.conv2d_1 = hk.Conv2D(self.num_classes,
                                   kernel_shape=self.kernel_size,
                                   stride=1,
                                   padding=[0, 0])
@@ -78,14 +78,15 @@ class HeadSeg(hk.Module):
         #                           stride=1,
         #                           padding=[0, 0])
         self.conv2d_3 = hk.Conv2D(self.num_classes,
-                                  kernel_shape=1,
+                                  kernel_shape=self.kernel_size,
                                   stride=1,
-                                  padding=[1, 1])
+                                  padding=[2, 2])
         # self.bn = hk.BatchNorm()
         if (self.dataset == "VOCSegmentation"):
             self.interp = Interpolate(scale_factor=4)
         else:
-            self.interp = Interpolate(scale_factor=4)
+            self.interp = Interpolate(
+                scale_factor=int(self.resample_dim/input_dims[0]))
         # self.interp = hk.Conv2DTranspose(self.num_classes,
         #                                  kernel_shape=4,
         #                                  stride=1,

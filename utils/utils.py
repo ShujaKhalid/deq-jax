@@ -332,7 +332,7 @@ def get_outputs(x, config):
         from models.architectures.mdeqformer import HeadDepth
 
     if (mode == "seg"):
-        head_seg = HeadSeg(resample_dim, patch_size, config, num_classes)
+        head_seg = HeadSeg(x.shape, resample_dim, patch_size, config, num_classes)
         x = head_seg(x)
     elif (mode == "depth"):
         head_dep = HeadDepth(resample_dim, patch_size)
