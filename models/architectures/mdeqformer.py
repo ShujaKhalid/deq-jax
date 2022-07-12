@@ -105,11 +105,10 @@ class HeadSeg(hk.Module):
         # x = self.relu(x)
         # x = self.conv2d_3(x)
         # x = self.relu(x)
+        x = self.interp(x)  # replace with transConv if necessary
         if (self.transpose):
             x = self.transConv2D(x)
             x = self.relu(x)
-        else:
-            x = self.interp(x)  # replace with transConv if necessary
         #x = self.sigmoid(x)
 
         return x
