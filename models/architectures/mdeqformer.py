@@ -65,7 +65,7 @@ class HeadSeg(hk.Module):
         super(HeadSeg, self).__init__()
         self.resample_dim = resample_dim
         self.num_classes = num_classes
-        self.kernel_size = 2
+        self.kernel_size = 3
         self.patch_size = patch_size
         self.dataset = config["data_attrs"]["dataset"]
         self.fc1 = hk.Linear(self.resample_dim)
@@ -73,19 +73,19 @@ class HeadSeg(hk.Module):
                                   kernel_shape=self.kernel_size,
                                   stride=1,
                                   padding=[0, 0])
-        self.conv2d_2 = hk.Conv2D(self.resample_dim // 4,
-                                  kernel_shape=self.kernel_size,
-                                  stride=1,
-                                  padding=[1, 1])
+        # self.conv2d_2 = hk.Conv2D(self.resample_dim // 4,
+        #                           kernel_shape=self.kernel_size,
+        #                           stride=1,
+        #                           padding=[0, 0])
         self.conv2d_3 = hk.Conv2D(self.num_classes,
                                   kernel_shape=1,
                                   stride=1,
-                                  padding=[0, 0])
+                                  padding=[1, 1])
         # self.bn = hk.BatchNorm()
         if (self.dataset == "VOCSegmentation"):
             self.interp = Interpolate(scale_factor=4)
         else:
-            self.interp = Interpolate(scale_factor=16)
+            self.interp = Interpolate(scale_factor=8)
         # self.interp = hk.Conv2DTranspose(self.num_classes,
         #                                  kernel_shape=4,
         #                                  stride=1,
@@ -100,8 +100,8 @@ class HeadSeg(hk.Module):
             x = u.unpatchify(x)
             x = self.conv2d_1(x)
             x = self.relu(x)
-            x = self.conv2d_2(x)
-            x = self.relu(x)
+            # x = self.conv2d_2(x)
+            # x = self.relu(x)
             x = self.conv2d_3(x)
             x = self.relu(x)
             x = self.interp(x)  # replace with transConv if necessary
@@ -110,8 +110,8 @@ class HeadSeg(hk.Module):
             x = u.unpatchify(x)
             x = self.conv2d_1(x)
             x = self.relu(x)
-            x = self.conv2d_2(x)
-            x = self.relu(x)
+            # x = self.conv2d_2(x)
+            # x = self.relu(x)
             x = self.conv2d_3(x)
             x = self.relu(x)
             x = self.interp(x)  # replace with transConv if necessary
