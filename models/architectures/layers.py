@@ -103,6 +103,42 @@ class SelfAttention(hk.Module):
         return self.to_out(out)
 
 
+class MultiHeadAttention(hk.Module):
+    def __init__(self, dim_out, heads, dim_head=64, dropout=0):
+        super(MultiHeadAttention, self).__init__()
+        inner_dim = dim_head * heads
+        project_out = not (heads == 1 and dim_head == dim_out)
+
+        self.heads = heads
+        self.scale = dim_head ** -0.5
+
+        self.to_qkv = hk.Linear(output_size=inner_dim * 3, with_bias=False)
+        self.to_out = hk.Sequential([
+            hk.Linear(dim_out),
+            # hk.dropout(dropout, rate=0.2)  # TODO: add to config
+        ]) if project_out else IdentityLayer()
+        self.attention = hk.MultiHeadAttention(dim_out, self.heads, dim_head)
+
+    def __call__(self, x):
+        # print("x.shape (before to_qkv): {}".format(x.shape))
+        qkv = self.to_qkv(x)
+        # print("qkv.shape (after to_qkv): {}".format(qkv.shape))
+        qkv = jnp.split(qkv, 3, axis=-1)
+        #print("qkv.shape (before rearrange): {}".format(qkv.shape))
+        q, k, v = map(lambda t: rearrange(
+            t, 'b n (h d) -> b h n d', h=self.heads), qkv)
+        # print("q.shape (after map): {}".format(q.shape))
+        # print("k.shape (after map): {}".format(k.shape))
+        # print("v.shape (after map): {}".format(v.shape))
+
+        attn = self.attention(q, k, v)
+        # out = jnp.einsum('b h i j, b h j d -> b h i d', attn, v)
+        # TODO: Is this really needed in VisTransformer archs?
+        out = rearrange(attn,  'b h n d -> b n (h d)')
+
+        return self.to_out(out)
+
+
 class Transformer(hk.Module):
     """
     Transformer
@@ -113,7 +149,9 @@ class Transformer(hk.Module):
         self.depth = depth
         self.num_heads = num_heads
         self.latent_dims = latent_dims
-        self.attention = SelfAttention(
+        # self.attention = SelfAttention(
+        #     dim_out=latent_dims, heads=self.num_heads)
+        self.attention = MultiHeadAttention(
             dim_out=latent_dims, heads=self.num_heads)
         self.norm_attention = PreNorm(f=self.attention)
         self.residual_norm_attention = Residual(f_res=self.norm_attention)

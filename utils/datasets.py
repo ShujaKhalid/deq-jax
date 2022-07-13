@@ -14,6 +14,46 @@ import utils.dataset as dataset
 torch.manual_seed(1993)
 
 CUSTOM_DATASETS = ['shakespeare_mini']
+# CITYSCAPES_MAPPING = {
+#     0: 0,
+#     1: 0,
+#     2: 0,
+#     3: 0,
+#     4: 0,
+#     5: 0,
+#     6: 0,
+#     7: 1,
+#     8: 2,
+#     9: 0,
+#     10: 0,
+#     11: 3,
+#     12: 4,
+#     13: 5,
+#     14: 0,
+#     15: 0,
+#     16: 0,
+#     17: 6,
+#     18: 0,
+#     19: 7,
+#     20: 8,
+#     21: 9,
+#     22: 10,
+#     23: 11,
+#     24: 12,
+#     25: 13,
+#     26: 14,
+#     27: 15,
+#     28: 16,
+#     29: 0,
+#     30: 0,
+#     31: 17,
+#     32: 18,
+#     33: 19,
+#     -1: 0
+# }
+
+# For testing and training purpose only -> increments
+# the set no. of classes
 CITYSCAPES_MAPPING = {
     0: 0,
     1: 0,
@@ -22,13 +62,13 @@ CITYSCAPES_MAPPING = {
     4: 0,
     5: 0,
     6: 0,
-    7: 1,
-    8: 2,
+    7: 0,
+    8: 0,
     9: 0,
     10: 0,
-    11: 3,
-    12: 4,
-    13: 5,
+    11: 0,
+    12: 0,
+    13: 0,
     14: 0,
     15: 0,
     16: 0,
@@ -36,61 +76,21 @@ CITYSCAPES_MAPPING = {
     18: 0,
     19: 7,
     20: 8,
-    21: 9,
-    22: 10,
-    23: 11,
-    24: 12,
-    25: 13,
-    26: 14,
-    27: 15,
-    28: 16,
+    21: 0,
+    22: 0,
+    23: 0,
+    24: 0,
+    25: 0,
+    26: 0,
+    27: 0,
+    28: 0,
     29: 0,
     30: 0,
-    31: 17,
-    32: 18,
-    33: 19,
+    31: 0,
+    32: 0,
+    33: 0,
     -1: 0
 }
-
-# For testing and training purpose only -> increments
-# the set no. of classes
-# CITYSCAPES_MAPPING = {
-#     0: 0,
-#     1: 0,
-#     2: 0,
-#     3: 0,
-#     4: 0,
-#     5: 0,
-#     6: 7,
-#     7: 0,
-#     8: 6,
-#     9: 7,
-#     10: 0,
-#     11: 4,
-#     12: 0,
-#     13: 0,
-#     14: 0,
-#     15: 0,
-#     16: 0,
-#     17: 5,
-#     18: 0,
-#     19: 11,
-#     20: 12,
-#     21: 10,
-#     22: 8,
-#     23: 3,
-#     24: 1,
-#     25: 0,
-#     26: 2,
-#     27: 0,
-#     28: 9,
-#     29: 0,
-#     30: 0,
-#     31: 0,
-#     32: 13,
-#     33: 14,
-#     -1: 0
-# }
 
 
 class Datasets():
@@ -184,7 +184,7 @@ class Datasets():
                 ])
             transform_cityscapes_friendly = transforms.Compose(
                 [
-                    transforms.Resize((256, 512)),
+                    transforms.Resize((64, 128)),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
                         0.229, 0.224, 0.225])

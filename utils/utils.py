@@ -332,14 +332,16 @@ def get_outputs(x, config):
         from models.architectures.mdeqformer import HeadDepth
 
     if (mode == "seg"):
-        head_seg = HeadSeg(x.shape, resample_dim, patch_size, config, num_classes)
+        head_seg = HeadSeg(x.shape, resample_dim,
+                           patch_size, config, num_classes)
         x = head_seg(x)
     elif (mode == "depth"):
         head_dep = HeadDepth(resample_dim, patch_size)
         x = head_dep(x)
     elif (mode == "cls" or mode == "cls_trans"):
         # z_star = jnp.mean(z_star[:, 0])
-        x = jnp.mean(x, axis=1)
+        #x = jnp.mean(x, axis=1)
+        x = x[:, 0]
         x = hk.Linear(resample_dim)(x)
         x = jax.nn.gelu(x)
         x = hk.Linear(num_classes)(x)

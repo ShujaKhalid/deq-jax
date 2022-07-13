@@ -215,7 +215,7 @@ class Transformer(hk.Module):
         self.latent_dims = latent_dims
         self.mode = mode
         self.dataset = self.config["data_attrs"]["dataset"]
-        self.init = jax.nn.initializers.normal(stddev=1.0)
+        self.init = hk.initializers.RandomNormal()
         self.resample_dim = resample_dim
         # self.head_seg = HeadSeg(self.resample_dim, self.num_classes)
         # self.head_depth = HeadDepth(self.resample_dim)
@@ -224,7 +224,7 @@ class Transformer(hk.Module):
         self.patches_dim = self.cnl*self.patch_size**2
         self.scales = self.config["model_attrs"]["cv"]["scales"]
         self.tokens_cls = hk.get_parameter(
-            'tokens_cls', shape=(self.batch_size, 1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
+            'tokens_cls', shape=(self.batch_size, 1, self.latent_dims[1]), init=self.init)  # TODO: Add Gaussian inits
         # self.embed_pos = hk.get_parameter(
         #     'embed_pos', shape=(1, self.patches_qty+1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
 
@@ -245,7 +245,7 @@ class Transformer(hk.Module):
         """
 
         embed_pos = hk.get_parameter(
-            'embed_pos', shape=(1, x.shape[1]+1, self.latent_dims[0]), init=jnp.zeros)
+            'embed_pos', shape=(1, x.shape[1]+1, self.latent_dims[0]), init=self.init)
         x = jnp.concatenate([self.tokens_cls, x], axis=1)
         x += embed_pos
 

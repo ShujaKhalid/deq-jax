@@ -123,7 +123,7 @@ class CheckpointingUpdater:
     def __init__(self,
                  inner: Updater,
                  checkpoint_dir: str,
-                 checkpoint_every_n: int = 10000):
+                 checkpoint_every_n: int = 1000):
         self._inner = inner
         self._checkpoint_dir = checkpoint_dir
         self._checkpoint_every_n = checkpoint_every_n
@@ -157,8 +157,8 @@ class CheckpointingUpdater:
             checkpoint_state = jax.device_get(state)
             logging.info('Serializing experiment state to %s', path)
             # TODO: dont add to the checkpoint
-            # with open(path, 'wb') as f:
-            #     pickle.dump(checkpoint_state, f)
+            with open(path, 'wb') as f:
+                pickle.dump(checkpoint_state, f)
 
         state, out = self._inner.update(state, data)
         return state, out
@@ -166,8 +166,9 @@ class CheckpointingUpdater:
 
 def main(config):
 
-    config["checkpoint_dir"] = config["logging"]["logdir"] + \
-        str(int(time.time_ns()/1000)) + "/"
+    # config["checkpoint_dir"] = config["logging"]["logdir"] + \
+    #     str(int(time.time_ns()/1000)) + "/"
+    config["checkpoint_dir"] = config["logging"]["logdir"] + "/test/"
 
     # Save a snapshot of the code to the checkpoint directory
     os.system("mkdir -p "+config["checkpoint_dir"])
