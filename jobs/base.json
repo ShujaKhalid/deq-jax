@@ -23,7 +23,7 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 256,
+        "batch_size": 4096,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,
@@ -31,10 +31,10 @@
             "d_model": 128,
             "patch_size": 4,
             "scales": "[]",
-            "num_heads": 6,
-            "depth": 6,
-            "latent_dims": "[384, 384, 384]",
-            "resample_dim": 384,
+            "num_heads": 3,
+            "depth": 3,
+            "latent_dims": "[192, 192, 192]",
+            "resample_dim": 192,
             "transpose": "True"
         },
         "lm": {
@@ -53,9 +53,9 @@
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.0001,
+        "learning_rate": 0.01,
         "b1": 0.9,
         "b2": 0.99
     },
-    "n_threads": 4
+    "n_threads": 8
 }

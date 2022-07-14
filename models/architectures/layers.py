@@ -80,7 +80,6 @@ class SelfAttention(hk.Module):
         self.scale = dim_head ** -0.5
         self.dropout = dropout
         self.fc = hk.Linear(dim_out)
-
         self.to_qkv = hk.Linear(output_size=inner_dim * 3, with_bias=False)
 
     def __call__(self, x):
@@ -96,6 +95,7 @@ class SelfAttention(hk.Module):
         # print("v.shape (after map): {}".format(v.shape))
 
         # TODO: got this working but the paper implementation is different
+        # scaled self-attention
         dots = jnp.einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
         attn = jax.nn.softmax(dots, axis=-1)
         out = jnp.einsum('b h i j, b h j d -> b h i d', attn, v)
