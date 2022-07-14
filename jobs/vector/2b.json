@@ -23,7 +23,7 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 16,
+        "batch_size": 8,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 1,
