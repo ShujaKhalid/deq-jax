@@ -18,9 +18,9 @@
         "num_classes": 20
     },
     "deq_attrs": {
-        "deq_flag": "False",
+        "deq_flag": "True",
         "max_iter": 10,
-        "solver": 1
+        "solver": 0
     },
     "model_attrs": {
         "batch_size": 16,
@@ -30,11 +30,11 @@
             "dropout_rate": 0.1,
             "d_model": 128,
             "patch_size": 16,
-            "scales": "[2,4,8]",
-            "num_heads": 20,
+            "scales": "[]",
+            "num_heads": 16,
             "depth": 1,
-            "latent_dims": "[512, 512, 512]",
-            "resample_dim": 65536,
+            "latent_dims": "[4096, 4096, 4096]",
+            "resample_dim": 4096,
             "transpose": "False"
         },
         "lm": {

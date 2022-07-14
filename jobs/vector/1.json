@@ -23,18 +23,18 @@
         "solver": 1
     },
     "model_attrs": {
-        "batch_size": 2,
+        "batch_size": 16,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
             "patch_size": 16,
-            "scales": "[2,4,8]",
-            "num_heads": 20,
+            "scales": "[]",
+            "num_heads": 16,
             "depth": 1,
-            "latent_dims": "[512, 512, 512]",
-            "resample_dim": 262144,
+            "latent_dims": "[1024, 1024, 1024]",
+            "resample_dim": 1024,
             "transpose": "True"
         },
         "lm": {

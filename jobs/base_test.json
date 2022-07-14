@@ -8,34 +8,34 @@
         "log": "False",
         "log_every": 10,
         "save_imgs_step": 5,
-        "trn_set": 20,
-        "tst_set": 20
+        "trn_set": 15,
+        "tst_set": 10
     },
     "data_attrs": {
-        "dataset_path": "/scratch/ssd002/home/skhalid/",
+        "dataset_path": "/home/skhalid/Documents/datalake/",
         "dataset": "Cityscapes",
         "transform": "None",
         "num_classes": 20
     },
     "deq_attrs": {
-        "deq_flag": "True",
+        "deq_flag": "False",
         "max_iter": 10,
         "solver": 1
     },
     "model_attrs": {
-        "batch_size": 8,
+        "batch_size": 16,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
-            "patch_size": 16,
+            "patch_size": 8,
             "scales": "[]",
             "num_heads": 16,
             "depth": 1,
             "latent_dims": "[1024, 1024, 1024]",
-            "resample_dim": 1024,
-            "transpose": "True"
+            "resample_dim": 4096,
+            "transpose": "False"
         },
         "lm": {
             "arch": "mdeqformer",

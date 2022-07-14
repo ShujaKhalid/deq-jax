@@ -44,6 +44,8 @@ class Residual(hk.Module):
         self.f_res = f_res
 
     def __call__(self, x):
+        # print("x.shape: {}".format(x.shape))
+        # print("f_res(x).shape: {}".format(self.f_res(x).shape))
         return self.f_res(x) + x
 
 
@@ -103,8 +105,9 @@ class SelfAttention(hk.Module):
         out = rearrange(out,  'b h n d -> b n (h d)')
 
         # to_out
+        out = self.fc(out)
         out = hk.dropout(self.rng, self.dropout, out)
-
+        # print("out.shape: {}".format(out.shape))
         return out
 
 
@@ -153,10 +156,11 @@ class Transformer(hk.Module):
         super(Transformer, self).__init__()
         self.config = config
         self.dropout = self.config["model_attrs"]["cv"]["dropout_rate"]
+        self.resample_dim = self.config["model_attrs"]["cv"]["resample_dim"]
         self.latent_dims = eval(
             self.config["model_attrs"]["cv"]["latent_dims"])
-        self.att_dim = self.latent_dims[0]
-        self.ff_dim = self.latent_dims[1]
+        self.att_dim = self.resample_dim
+        self.ff_dim = self.resample_dim
         self.depth = self.config["model_attrs"]["cv"]["depth"]
         self.num_heads = self.config["model_attrs"]["cv"]["num_heads"]
         self.attention = SelfAttention(

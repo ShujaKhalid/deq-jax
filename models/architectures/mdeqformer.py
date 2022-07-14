@@ -85,7 +85,7 @@ class HeadSeg(hk.Module):
         # self.bn = hk.BatchNorm()
         self.transConv2D = hk.Conv2DTranspose(self.num_classes, kernel_shape=3)
         self.interp = Interpolate(
-            scale_factor=int((256*2)/np.sqrt(self.resample_dim)))  # TODO
+            scale_factor=int((256)/np.sqrt(self.resample_dim)))  # TODO
         # self.interp = hk.Conv2DTranspose(self.num_classes,
         #                                  kernel_shape=4,
         #                                  stride=1,
@@ -224,7 +224,9 @@ class Transformer(hk.Module):
         self.scales = self.config["model_attrs"]["cv"]["scales"]
         self.dropout = self.config["model_attrs"]["cv"]["dropout_rate"]
         self.tokens_cls = hk.get_parameter(
-            'tokens_cls', shape=(self.batch_size, 1, self.latent_dims[1]), init=self.init)  # TODO: Add Gaussian inits
+            'tokens_cls', shape=(self.batch_size, 1, self.resample_dim), init=self.init)  # TODO: Add Gaussian inits
+        self.embed_pos = hk.get_parameter(
+            'embed_pos', shape=(1, x_size[1]+1, self.resample_dim), init=self.init)
         # self.embed_pos = hk.get_parameter(
         #     'embed_pos', shape=(1, self.patches_qty+1, self.latent_dims[1]), init=jnp.zeros)  # TODO: Add Gaussian inits
 
@@ -243,11 +245,8 @@ class Transformer(hk.Module):
             output_cls: output classification
             output seg: generated segmentation
         """
-
-        embed_pos = hk.get_parameter(
-            'embed_pos', shape=(1, x.shape[1]+1, self.latent_dims[0]), init=self.init)
         x = jnp.concatenate([self.tokens_cls, x], axis=1)
-        x += embed_pos
+        x += self.embed_pos
         x = hk.dropout(jax.random.PRNGKey(999), self.dropout, x)
         # x = hk.BatchNorm(True, True, 0.9)(x, is_training=True)
 
