@@ -29,13 +29,13 @@
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
-            "patch_size": 8,
+            "patch_size": 16,
             "scales": "[]",
             "num_heads": 16,
             "depth": 1,
             "latent_dims": "[1024, 1024, 1024]",
-            "resample_dim": 4096,
-            "transpose": "False"
+            "resample_dim": 1024,
+            "transpose": "True"
         },
         "lm": {
             "arch": "mdeqformer",

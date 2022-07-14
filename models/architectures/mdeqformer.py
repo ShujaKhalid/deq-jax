@@ -85,7 +85,7 @@ class HeadSeg(hk.Module):
         # self.bn = hk.BatchNorm()
         self.transConv2D = hk.Conv2DTranspose(self.num_classes, kernel_shape=3)
         self.interp = Interpolate(
-            scale_factor=int((256)/np.sqrt(self.resample_dim)))  # TODO
+            scale_factor=int((256*2)/np.sqrt(self.resample_dim)))  # TODO
         # self.interp = hk.Conv2DTranspose(self.num_classes,
         #                                  kernel_shape=4,
         #                                  stride=1,
