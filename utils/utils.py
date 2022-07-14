@@ -342,8 +342,10 @@ def get_outputs(x, config):
         # z_star = jnp.mean(z_star[:, 0])
         #x = jnp.mean(x, axis=1)
         x = x[:, 0]
-        x = hk.Linear(resample_dim)(x)
-        x = jax.nn.gelu(x)
+        # x = hk.Linear(resample_dim)(x)
+        # x = jax.nn.gelu(x)
+        x = hk.LayerNorm(
+            axis=-1, create_scale=True, create_offset=True)(x)
         x = hk.Linear(num_classes)(x)
     else:
         raise Exception("get_outputs incorrectly selected")

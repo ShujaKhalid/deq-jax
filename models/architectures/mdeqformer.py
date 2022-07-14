@@ -97,7 +97,7 @@ class HeadSeg(hk.Module):
     def __call__(self, x):
         # print("x.shape (before patchify): {}".format(x.shape))
 
-        x = self.fc1(x)
+        #x = self.fc1(x)
         x = u.unpatchify(x)
         x = self.conv2d_1(x)
         x = self.relu(x)
@@ -139,10 +139,12 @@ class Patchify(hk.Module):
         self.latent_dims = eval(
             self.config["model_attrs"]["cv"]["latent_dims"])
         self.batch_size = self.config["model_attrs"]["batch_size"]
-        self.init = jax.nn.initializers.normal(stddev=1.0)
         # TODO: can this be replaced with latent dims? or vice-versa?
         self.resample_dim = self.config["model_attrs"]["cv"]["resample_dim"]
         self.scales = eval(self.config["model_attrs"]["cv"]["scales"])
+        self.fc = hk.Linear(self.resample_dim)
+        self.layer_norm = hk.LayerNorm(
+            axis=-1, create_scale=True, create_offset=True)
 
     def __call__(self, x):
         """
@@ -182,11 +184,11 @@ class Patchify(hk.Module):
             raise Exception(
                 "This could be related to the `scales` parameter in your config file.")
 
-        embed_arr = jnp.zeros((self.batch_size, 0, self.latent_dims[0]))
+        embed_arr = jnp.zeros((self.batch_size, 0, self.resample_dim))
         for indx in range(len(patches_arr)):
             inp = patches_arr[indx]
-            # out = self.fc(inp)
-            out = hk.Linear(self.latent_dims[0])(inp)
+            out = self.fc(inp)
+            out = self.layer_norm(out)
             embed_arr = jnp.concatenate((embed_arr, out), axis=1)
         # print("embedding dims (after): {}".format(jnp.array(embed_arr).shape))
 
@@ -217,12 +219,10 @@ class Transformer(hk.Module):
         self.dataset = self.config["data_attrs"]["dataset"]
         self.init = hk.initializers.RandomNormal()
         self.resample_dim = resample_dim
-        # self.head_seg = HeadSeg(self.resample_dim, self.num_classes)
-        # self.head_depth = HeadDepth(self.resample_dim)
-        #self.fc = hk.Linear(self.latent_dims[0])
         self.batch_size, self.patches_qty, self.cnl = self.x_size
         self.patches_dim = self.cnl*self.patch_size**2
         self.scales = self.config["model_attrs"]["cv"]["scales"]
+        self.dropout = self.config["model_attrs"]["cv"]["dropout_rate"]
         self.tokens_cls = hk.get_parameter(
             'tokens_cls', shape=(self.batch_size, 1, self.latent_dims[1]), init=self.init)  # TODO: Add Gaussian inits
         # self.embed_pos = hk.get_parameter(
@@ -248,23 +248,23 @@ class Transformer(hk.Module):
             'embed_pos', shape=(1, x.shape[1]+1, self.latent_dims[0]), init=self.init)
         x = jnp.concatenate([self.tokens_cls, x], axis=1)
         x += embed_pos
+        x = hk.dropout(jax.random.PRNGKey(999), self.dropout, x)
+        # x = hk.BatchNorm(True, True, 0.9)(x, is_training=True)
 
         # Run through main transformer backbone
-        x = Backbone(self.depth, self.num_heads,
-                     self.latent_dims[1])(x)
+        x = Backbone(self.config)(x)
 
         # print("Before strip: {}".format(x.shape))
-        # x = x[:, :49, :48]  # TODO: FIX...
         if (self.dataset == "Cityscapes"):
-            x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
+            x = x[:, :self.patches_qty, :self.latent_dims[1]]  # TODO: FIX...
         elif (self.dataset == "VOCSegmentation"):
-            x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
+            x = x[:, :self.patches_qty, :self.latent_dims[1]]  # TODO: FIX...
         elif (self.dataset == "CIFAR10"):
-            x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
+            x = x[:, :self.patches_qty, :self.latent_dims[1]]  # TODO: FIX...
         elif (self.dataset == "ImageNet"):
-            x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
+            x = x[:, :self.patches_qty, :self.latent_dims[1]]  # TODO: FIX...
         elif (self.dataset == "MNIST"):
-            x = x[:, :self.patches_qty, :self.latent_dims[0]]  # TODO: FIX...
+            x = x[:, :self.patches_qty, :self.latent_dims[1]]  # TODO: FIX...
         else:
             raise Exception(
                 "DEQ dimensions not available for proposed dataset")
