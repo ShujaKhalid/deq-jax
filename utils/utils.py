@@ -153,7 +153,7 @@ def run(config, x, model):
             # Define a callable function for ease of access downstream
             def f(params, rng, x):
                 return model.apply(params, rng, x)
-
+            print("\nRUNNING DEQ...\n")
             z_star = deq(
                 params,
                 config["deq_attrs"]["solver"],
