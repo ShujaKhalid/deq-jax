@@ -261,7 +261,7 @@ def preproc(x, config):
     # x = np.expand_dims(x, axis=3) if len(x.shape) == 3 else x
     # # TODO: fix
     # x = np.repeat(x, 3, axis=3) if x.shape[3] == 1 else x
-    if (x.shape[1] == 3):
+    if (x.shape[-1] == 3):
         # shift c axis to the end
         # [B, C, H, W] -> [B, H, W, C]
         x = np.transpose(x, (0, 2, 3, 1))

@@ -1,7 +1,9 @@
+from turtle import xcor
 import jax
 import haiku as hk
 import numpy as np
 import jax.numpy as jnp
+from einops import rearrange
 
 from models.architectures.layers import Transformer as Backbone
 import utils.utils as u
@@ -165,7 +167,10 @@ class Patchify(hk.Module):
         bsz, cnl, hgt, wdt = x.shape
         patches_qty = (hgt*wdt)//(self.patch_size**2)
         patches_dim = cnl*(self.patch_size**2)
-        patches = x.reshape(bsz, patches_qty, patches_dim).astype('float32')
+        patches = rearrange(x, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)',
+                            p1=self.patch_size, p2=self.patch_size)
+        # print("patches.shape: {}".format(patches.shape))
+        #patches = x.reshape(bsz, patches_qty, patches_dim).astype('float32')
         patches_arr.append(patches)
 
         # Run scales only if necessary

@@ -1,15 +1,15 @@
 {
     "mode": "seg",
     "logging": {
-        "eval_every": 20,
+        "eval_every": 2,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
         "log_every": 10,
         "save_imgs_step": 5,
-        "trn_set": 15,
-        "tst_set": 10
+        "trn_set": 5,
+        "tst_set": 5
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
@@ -23,7 +23,7 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 32,
+        "batch_size": 8,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 1,
@@ -31,11 +31,11 @@
             "d_model": 128,
             "patch_size": 8,
             "scales": "[]",
-            "num_heads": 6,
+            "num_heads": 3,
             "depth": 1,
-            "latent_dims": "[1024, 1024, 1024]",
-            "resample_dim": 1024,
-            "transpose": "False"
+            "latent_dims": "[4096, 4096, 4096]",
+            "resample_dim": 4096,
+            "transpose": "True"
         },
         "lm": {
             "arch": "mdeqformer",
@@ -53,7 +53,7 @@
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.001,
+        "learning_rate": 0.0001,
         "b1": 0.9,
         "b2": 0.99
     },
