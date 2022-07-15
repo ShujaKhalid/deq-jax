@@ -36,7 +36,12 @@ class Losses():
         targets = jax.nn.one_hot(data['target'], self.num_classes)
         print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
         assert logits.shape == targets.shape
-        loss = jnp.sum(-jnp.sum(targets * jax.nn.log_softmax(logits), axis=-1))
+        # loss = jnp.mean(-jnp.sum(targets *
+        #                 jax.nn.log_softmax(logits), axis=-1))
+        target_class = jnp.argmax(targets, axis=1)
+        nll = jnp.take_along_axis(
+            jax.nn.log_softmax(logits), jnp.expand_dims(target_class, axis=1), axis=1)
+        loss = -jnp.mean(nll)
 
         return loss
 
@@ -67,7 +72,7 @@ class Losses():
                                 num.astype(jnp.float32) / denom)
 
         # ce loss
-        ce_loss = jnp.sum(-jnp.sum(targets * logits, axis=-1))
+        ce_loss = jnp.mean(-jnp.sum(targets * logits, axis=-1))
         #l2_loss = -jnp.sum(logits - targets)
 
         return ce_loss

@@ -219,7 +219,7 @@ def qnm(fun, x, max_iter, eps, solver, mode, *args):
         from solvers.broyden_cv import broyden as find_root
         result_info = jax.lax.stop_gradient(
             find_root(fun, x, max_iter, eps, *args)
-        )['result']
+        )
     elif (solver == 1 and mode == 0):
         from jaxopt import AndersonAcceleration as find_root
         result_info = jax.lax.stop_gradient(
@@ -258,13 +258,21 @@ def qnm(fun, x, max_iter, eps, solver, mode, *args):
 
 
 def preproc(x, config):
-    x = np.expand_dims(x, axis=3) if len(x.shape) == 3 else x
-    # TODO: fix
-    x = np.repeat(x, 3, axis=3) if x.shape[3] == 1 else x
-    if (x.shape[-1] == 3):
+    # x = np.expand_dims(x, axis=3) if len(x.shape) == 3 else x
+    # # TODO: fix
+    # x = np.repeat(x, 3, axis=3) if x.shape[3] == 1 else x
+    if (x.shape[1] == 3):
         # shift c axis to the end
         # [B, C, H, W] -> [B, H, W, C]
-        x = np.transpose(x, (0, 3, 1, 2))
+        x = np.transpose(x, (0, 2, 3, 1))
+    # print(x.shape)
+    # print(x.min())
+    # print(x.max())
+    # save_loc = config["checkpoint_dir"]
+    # for i in range(x.shape[0]):
+    #     img_orig = (x[i, :, :, :] * 255).astype(np.uint8)
+    #     img_orig = Image.fromarray(img_orig)
+    #     img_orig.save(save_loc+str(i)+str(i)+"_orig.png")
 
     # Change the format of the data
     # from img -> img_patch
@@ -276,7 +284,7 @@ def preproc(x, config):
         patchify = Patchify(config)
         return patchify(x)
 
-    rng = jax.random.PRNGKey(428)  # FIXME I dont thhink this is right...
+    rng = jax.random.PRNGKey(999)  # FIXME I dont thhink this is right...
 
     init, apply = hk.transform(patchify_fn)
     params = init(rng, config, x)
@@ -339,9 +347,8 @@ def get_outputs(x, config):
         head_dep = HeadDepth(resample_dim, patch_size)
         x = head_dep(x)
     elif (mode == "cls" or mode == "cls_trans"):
-        # z_star = jnp.mean(z_star[:, 0])
-        #x = jnp.mean(x, axis=1)
-        x = x[:, 0]
+        x = jnp.mean(x, axis=1)
+        #x = x[:, 0]
         # x = hk.Linear(resample_dim)(x)
         # x = jax.nn.gelu(x)
         x = hk.LayerNorm(

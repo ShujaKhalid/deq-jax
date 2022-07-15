@@ -159,6 +159,9 @@ class Datasets():
 
             return np.array(pic, jnp.float32)
 
+        '''
+        TRAINING
+        '''
         def make_jax_friendly(pic):
             transform_imagenet_friendly = transforms.Compose(
                 [
@@ -170,11 +173,12 @@ class Datasets():
                 ])
             transform_cifar10_friendly = transforms.Compose(
                 [
+                    transforms.RandomCrop(32, padding=4),
                     transforms.Resize(32),
-                    # transforms.CenterCrop(224),
-                    # transforms.ToTensor(),
-                    # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
-                    #     0.229, 0.224, 0.225])
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
                 ])
             transform_mnist_friendly = transforms.Compose(
                 [
@@ -228,6 +232,28 @@ class Datasets():
 
             return np.array(pic, jnp.float32)
 
+        '''
+        VALIDATION
+        '''
+        def make_jax_friendly_val(pic):
+            transform_cifar10_friendly = transforms.Compose(
+                [
+                    transforms.Resize(32),
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+                ])
+
+            if (self.dataset_name == "CIFAR10"):
+                pic = transform_cifar10_friendly(pic)
+
+            # Only setup for detection
+            # if (self.dataset_name == "Kitti"):
+            #     pic = transform_kitti_friendly(pic)
+            #     print(pic.shape)
+
+            return np.array(pic, jnp.float32)
+
         if not self.dataset_name:
             raise Exception("No dataset has been set!?!")
 
@@ -265,6 +291,12 @@ class Datasets():
                 download=True,
                 transform=make_jax_friendly,
                 target_transform=make_jax_friendly_tgt)
+        elif (self.dataset_name == "CIFAR10"):
+            return getattr(torchvision.datasets, self.dataset_name)(
+                root=self.dataset_path,
+                train=train,
+                download=True,
+                transform=make_jax_friendly if train else make_jax_friendly_val)
         else:
             return getattr(torchvision.datasets, self.dataset_name)(
                 root=self.dataset_path,

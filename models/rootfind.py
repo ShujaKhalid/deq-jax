@@ -61,12 +61,16 @@ def rootfind_bwd(fun, max_iter, solver, mode, res, grad):
         return JTx + grad
 
     eps = 2e-10 * jnp.sqrt(grad.size)
+    lamda = 0.9
     dl_df_est = jnp.zeros_like(grad)
 
     # Iteratively calculate an estimate for this function instead of solving it analytically
     result_info = u.qnm(h_fun, dl_df_est, max_iter, eps, solver, mode)
     # Your estimate of the gradient through the solver
-    dl_df_est = result_info
+    print(result_info['trace'])
+    print(result_info['result'])
+    dl_df_est = result_info['result'] + \
+        lamda*jax.numpy.linalg.norm(result_info['trace'])
 
     # passed back gradient via d/dx and return nothing to other params
     arg_grads = tuple([None for _ in args])
@@ -82,17 +86,18 @@ def rootfind(g: Callable, max_iter: int, solver: int, mode: int, params: dict, r
 
     result_info = u.qnm(fun, x, max_iter, eps, solver, mode, *args)
 
-    return result_info
+    return result_info["result"]
 
 
 @partial(jax.custom_vjp, nondiff_argnums=(0, 1, 2, 3))
 def rootfind_grad(g: Callable, max_iter: int, solver: int, mode: int, params: dict, rng, x: jnp.ndarray, *args):
+    print("ROOTFIND_GRAD")
     eps = 1e-6 * jnp.sqrt(x.size)
     fun = partial(g, params, rng)
 
     result_info = u.qnm(fun, x, max_iter, eps, solver, mode, *args)
 
-    return result_info
+    return result_info["result"]
 
 
 rootfind.defvjp(rootfind_fwd, dumb_bwd)

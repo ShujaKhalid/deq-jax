@@ -13,28 +13,27 @@
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
-        "dataset": "MNIST",
+        "dataset": "CIFAR10",
         "transform": "None",
         "num_classes": 10
     },
     "deq_attrs": {
-        "deq_flag": "True",
+        "deq_flag": "False",
         "max_iter": 10,
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 256,
+        "batch_size": 512,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,
-            "dropout_rate": 0.0,
-            "d_model": 128,
+            "dropout_rate": 0.1,
             "patch_size": 4,
             "scales": "[]",
-            "num_heads": 3,
-            "depth": 1,
-            "latent_dims": "[1024, 1024, 1024]",
-            "resample_dim": 1024,
+            "num_heads": 8,
+            "depth": 6,
+            "latent_dims": "[512, 512, 512]",
+            "resample_dim": 512,
             "transpose": "True"
         },
         "lm": {
@@ -53,7 +52,7 @@
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.00005,
+        "learning_rate": 0.001,
         "b1": 0.9,
         "b2": 0.99
     },

@@ -19,7 +19,6 @@ class Forward():
         if (self.mode == "seg"):
             self.num_layers = self.config["model_attrs"]["cv"]["num_layers"]
             self.dropout_rate = self.config["model_attrs"]["cv"]["dropout_rate"]
-            self.d_model = self.config["model_attrs"]["cv"]["d_model"]
             self.patch_size = self.config["model_attrs"]["cv"]["patch_size"]
             self.num_heads = self.config["model_attrs"]["cv"]["num_heads"]
             self.depth = self.config["model_attrs"]["cv"]["depth"]
@@ -29,7 +28,6 @@ class Forward():
         elif (self.mode == "cls_trans"):
             self.num_layers = self.config["model_attrs"]["cv"]["num_layers"]
             self.dropout_rate = self.config["model_attrs"]["cv"]["dropout_rate"]
-            self.d_model = self.config["model_attrs"]["cv"]["d_model"]
             self.patch_size = self.config["model_attrs"]["cv"]["patch_size"]
             self.num_heads = self.config["model_attrs"]["cv"]["num_heads"]
             self.depth = self.config["model_attrs"]["cv"]["depth"]

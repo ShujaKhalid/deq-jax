@@ -189,12 +189,24 @@ def main(config):
     # Load loss function
     loss_fn = Losses(config, forward_fn).get_loss_fn()
 
+    # cosine scheduler
+    total_steps = config["opt_attrs"]["epochs"]  # Total Batches
+    cosine_decay_scheduler = optax.cosine_decay_schedule(
+        -config["opt_attrs"]["learning_rate"], total_steps)
+
     # Define optimizer
     optimizer = optax.chain(
         optax.clip_by_global_norm(config["opt_attrs"]["grad_clip_value"]),
-        optax.adam(config["opt_attrs"]["learning_rate"],
+        optax.adam(learning_rate=config["opt_attrs"]["learning_rate"],
                    b1=config["opt_attrs"]["b1"],
-                   b2=config["opt_attrs"]["b2"]))
+                   b2=config["opt_attrs"]["b2"])
+    )
+
+    # optimizer = optax.chain(
+    #     optax.adam(config["opt_attrs"]["learning_rate"],
+    #                b1=config["opt_attrs"]["b1"], b2=config["opt_attrs"]["b2"]),
+    #     # optax.scale_by_schedule(cosine_decay_scheduler)
+    # )
 
     updater = Updater(forward_fn.init, loss_fn, optimizer)
     updater = CheckpointingUpdater(updater, config["checkpoint_dir"])
