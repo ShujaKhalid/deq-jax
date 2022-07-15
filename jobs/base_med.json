@@ -1,7 +1,7 @@
 {
     "mode": "seg",
     "logging": {
-        "eval_every": 10,
+        "eval_every": 20,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
@@ -23,15 +23,15 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 64,
+        "batch_size": 32,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 1,
             "dropout_rate": 0.1,
             "d_model": 128,
-            "patch_size": 16,
+            "patch_size": 8,
             "scales": "[]",
-            "num_heads": 16,
+            "num_heads": 6,
             "depth": 1,
             "latent_dims": "[1024, 1024, 1024]",
             "resample_dim": 1024,

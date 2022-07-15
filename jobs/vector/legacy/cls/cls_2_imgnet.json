@@ -13,12 +13,12 @@
     },
     "data_attrs": {
         "dataset_path": "/scratch/ssd002/home/skhalid/imagenet/",
-        "dataset": "CIFAR10",
+        "dataset": "ImageNet",
         "transform": "None",
-        "num_classes": 10
+        "num_classes": 1000
     },
     "deq_attrs": {
-        "deq_flag": "False",
+        "deq_flag": "True",
         "max_iter": 10,
         "solver": 0
     },
@@ -32,8 +32,8 @@
             "scales": "[]",
             "num_heads": 8,
             "depth": 6,
-            "latent_dims": "[4096, 4096, 4096]",
-            "resample_dim": 4096,
+            "latent_dims": "[512, 512, 512]",
+            "resample_dim": 512,
             "transpose": "True"
         },
         "lm": {
@@ -52,7 +52,7 @@
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.001,
+        "learning_rate": 0.0001,
         "b1": 0.9,
         "b2": 0.99
     },
