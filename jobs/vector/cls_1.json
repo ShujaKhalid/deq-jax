@@ -1,7 +1,7 @@
 {
     "mode": "cls_trans",
     "logging": {
-        "eval_every": 10,
+        "eval_every": 1,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
@@ -23,15 +23,15 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 4096,
+        "batch_size": 512,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,
-            "dropout_rate": 0.2,
-            "patch_size": 8,
+            "dropout_rate": 0.1,
+            "patch_size": 4,
             "scales": "[]",
-            "num_heads": 10,
-            "depth": 5,
+            "num_heads": 8,
+            "depth": 6,
             "latent_dims": "[512, 512, 512]",
             "resample_dim": 512,
             "transpose": "True"
@@ -56,5 +56,5 @@
         "b1": 0.9,
         "b2": 0.99
     },
-    "n_threads": 4
+    "n_threads": 8
 }

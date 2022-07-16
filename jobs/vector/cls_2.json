@@ -32,8 +32,8 @@
             "scales": "[]",
             "num_heads": 10,
             "depth": 5,
-            "latent_dims": "[512, 512, 512]",
-            "resample_dim": 512,
+            "latent_dims": "[256, 256, 256]",
+            "resample_dim": 256,
             "transpose": "True"
         },
         "lm": {
