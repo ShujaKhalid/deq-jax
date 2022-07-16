@@ -21,6 +21,9 @@ def evaluate_cls(rng, state, epoch, config, ds_dict, preproc, cls_metrics):
         "f1": []
     }
     log_policy = eval(config["logging"]["log_policy"])
+    trn_set_policy = config["logging"]["trn_set"]
+    tst_set_policy = config["logging"]["tst_set"]
+
     if ("train" in log_policy):
         for i, (x, y) in enumerate(tqdm(ds_dict['dl_trn'])):
             x = preproc(x, config)
@@ -32,6 +35,10 @@ def evaluate_cls(rng, state, epoch, config, ds_dict, preproc, cls_metrics):
             res_trn["rec"].append(rec)
             res_trn["prec"].append(prec)
             res_trn["f1"].append(f1)
+
+            if (i == trn_set_policy):
+                break
+
     if ("valid" in log_policy):
         for i, (x, y) in enumerate(tqdm(ds_dict['dl_tst'])):
             x = preproc(x, config)
@@ -43,6 +50,9 @@ def evaluate_cls(rng, state, epoch, config, ds_dict, preproc, cls_metrics):
             res_tst["rec"].append(rec)
             res_tst["prec"].append(prec)
             res_tst["f1"].append(f1)
+
+            if (i == tst_set_policy):
+                break
 
     headers = ["metric", "value"]
     table_trn = [["TRAIN_"+k, np.mean(v)]

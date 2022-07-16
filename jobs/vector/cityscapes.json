@@ -1,7 +1,7 @@
 {
     "mode": "seg",
     "logging": {
-        "eval_every": 200,
+        "eval_every": 100,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",

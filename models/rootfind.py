@@ -67,14 +67,13 @@ def rootfind_bwd(fun, max_iter, solver, mode, res, grad):
     # Iteratively calculate an estimate for this function instead of solving it analytically
     result_info = u.qnm(h_fun, dl_df_est, max_iter, eps, solver, mode)
     # Your estimate of the gradient through the solver
-    print(result_info['trace'])
-    print(result_info['result'])
-    dl_df_est = result_info['result'] + \
-        lamda*jax.numpy.linalg.norm(result_info['trace'])
+
+    dl_df_est = result_info['result']
 
     # passed back gradient via d/dx and return nothing to other params
     arg_grads = tuple([None for _ in args])
-    return_tuple = (None, None, dl_df_est, *arg_grads)
+    return_tuple = (
+        None, lamda*jax.numpy.linalg.norm(result_info['trace']), dl_df_est, *arg_grads)
     return return_tuple
 # ====================================================================================================
 
