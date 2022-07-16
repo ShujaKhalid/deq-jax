@@ -9,6 +9,8 @@ from torch.utils import data
 from termcolor import cprint
 from models.deq import deq
 from PIL import Image
+from einops import rearrange
+
 
 from models.architectures.mdeqformer import Patchify
 
@@ -300,25 +302,18 @@ def unpatchify(patches):
     # #cnl = patches_dim / patch_size**2
     # cnl = (patches_qty * patches_dim) // (hgt * wdt)
     # x = patches.reshape(bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
-    patches = patches[:, :, :]
-    bsz, patches_qty, patches_dim = patches.shape
-    # TODO: arbitrarily set - specifically for Cityscapes...
-    # base_factor = 2
+    x = rearrange(patches, 'b (h w) (p1 p2 c) -> b c (h p1) (w p2)',
+                  h=30, w=30, p1=16, p2=16).transpose(0, 2, 3, 1)
+
+    # patches = patches[:, :, :]
+    # bsz, patches_qty, patches_dim = patches.shape
+    # base_factor = 1
     # hgt = wdt = int(np.sqrt(patches_dim)) * base_factor
     # wdt = wdt * base_factor
-    # cnl = (patches_qty) // (4*base_factor)
-    base_factor = 2
-    hgt = wdt = int(np.sqrt(patches_dim)) * base_factor
-    wdt = wdt * base_factor
-    cnl = (patches_qty) // (2**(base_factor+1))
-    d_new = (cnl) * (2**(base_factor+1))
-    # patches_pad = jnp.zeros((bsz, d_new, patches_dim))
-    # TODO: zero pad to avoid constant dim issues
-    # patches_pad.at[:bsz, :patches_qty, :patches_dim].set(
-    #     patches[:bsz, :patches_qty, :patches_dim])
-    # patches_pad = jnp.array(patches_pad)
-    x = patches[:bsz, :d_new, :patches_dim].reshape(
-        bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
+    # cnl = (patches_qty) // (2**(base_factor+1))
+    # d_new = (cnl) * (2**(base_factor+1))
+    # x = patches[:bsz, :d_new, :patches_dim].reshape(
+    #     bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
 
     return x
 

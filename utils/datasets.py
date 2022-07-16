@@ -151,7 +151,7 @@ class Datasets():
             if (self.dataset_name == "VOCSegmentation"):
                 pic = transform_voc_friendly(pic)
                 pic = np.array(pic)
-                print(np.unique(pic))
+                # print(np.unique(pic))
             if (self.dataset_name == "Cityscapes"):
                 for key in CITYSCAPES_MAPPING:
                     pic = np.array(pic)
@@ -190,7 +190,7 @@ class Datasets():
                 ])
             transform_cityscapes_friendly = transforms.Compose(
                 [
-                    transforms.Resize((256, 512)),
+                    transforms.Resize((512)),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
                         0.229, 0.224, 0.225])
@@ -207,8 +207,8 @@ class Datasets():
                 [
                     transforms.Resize((480, 480)),
                     transforms.ToTensor(),
-                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
-                        0.229, 0.224, 0.225])
+                    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[
+                        0.5, 0.5, 0.5])
                 ])
 
             if (self.dataset_name == "ImageNet"):
@@ -269,7 +269,7 @@ class Datasets():
                 root=self.dataset_path+"cityscapes",
                 split="train" if train else "val",
                 # ["coarse", "fine"]
-                mode="coarse",
+                mode="fine",
                 # ["instance", "semantic", "polygon", "color"]
                 target_type="semantic",
                 transform=make_jax_friendly,

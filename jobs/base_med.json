@@ -9,11 +9,11 @@
         "log_every": 10,
         "save_imgs_step": 5,
         "trn_set": 5,
-        "tst_set": 5
+        "tst_set": 25
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
-        "dataset": "Cityscapes",
+        "dataset": "VOCSegmentation",
         "transform": "None",
         "num_classes": 20
     },
@@ -26,15 +26,14 @@
         "batch_size": 8,
         "cv": {
             "arch": "mdeqformer",
-            "num_layers": 1,
+            "num_layers": 0,
             "dropout_rate": 0.1,
-            "d_model": 128,
-            "patch_size": 8,
+            "patch_size": 16,
             "scales": "[]",
-            "num_heads": 3,
-            "depth": 1,
-            "latent_dims": "[4096, 4096, 4096]",
-            "resample_dim": 4096,
+            "num_heads": 12,
+            "depth": 6,
+            "latent_dims": "[768, 768, 768]",
+            "resample_dim": 768,
             "transpose": "True"
         },
         "lm": {
@@ -50,7 +49,7 @@
         }
     },
     "opt_attrs": {
-        "max_steps": 10000,
+        "max_steps": 10,
         "epochs": 10000,
         "grad_clip_value": 1,
         "learning_rate": 0.0001,

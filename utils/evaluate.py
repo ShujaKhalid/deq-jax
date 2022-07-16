@@ -120,23 +120,23 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
     # Train - Jaccard
     classes = jac_trn[0].keys()
     units = len(jac_trn)
-    jaccard_trn = [[cls, np.mean([jac_trn[m][cls] for m in range(units) if cls in list(jac_trn[m].keys())])]
+    jaccard_trn = [[cls, np.nanmean([jac_trn[m][cls] for m in range(units) if cls in list(jac_trn[m].keys())])]
                    for _, cls in enumerate(classes)]
     # Test - Jaccard
     classes = jac_val[0].keys()
     units = len(jac_val)
-    jaccard_val = [[cls, np.mean([jac_val[m][cls] for m in range(units) if cls in list(jac_val[m].keys())])]
+    jaccard_val = [[cls, np.nanmean([jac_val[m][cls] for m in range(units) if cls in list(jac_val[m].keys())])]
                    for _, cls in enumerate(classes)]
 
     # Train - Dice
     classes = dice_trn[0].keys()
     units = len(dice_trn)
-    dice_trn = [[cls, np.mean([dice_trn[m][cls] for m in range(units) if cls in list(dice_trn[m].keys())])]
+    dice_trn = [[cls, np.nanmean([dice_trn[m][cls] for m in range(units) if cls in list(dice_trn[m].keys())])]
                 for _, cls in enumerate(classes)]
     # Test - Dice
     classes = dice_val[0].keys()
     units = len(dice_val)
-    dice_val = [[cls, np.mean([dice_val[m][cls] for m in range(units) if cls in list(dice_val[m].keys())])]
+    dice_val = [[cls, np.nanmean([dice_val[m][cls] for m in range(units) if cls in list(dice_val[m].keys())])]
                 for _, cls in enumerate(classes)]
 
     print("===> TRAINING <===")
@@ -152,11 +152,11 @@ def evaluate_seg(rng, state, epoch, config, ds_dict, preproc, seg_metrics):
 
     # print(tabulate(table_trn, headers, tablefmt="fancy_grid"))
     print("epoch: {} - iter: {} - jac_trn {:.2f} - jac_val: {:.2f} - dice_trn {:.2f} - dice_val: {:.2f}".format(epoch, i,
-                                                                                                                np.mean(np.array(jaccard_trn)[
-                                                                                                                        :, 1].astype(float)),
-                                                                                                                np.mean(np.array(jaccard_val)[
-                                                                                                                        :, 1].astype(float)),
-                                                                                                                np.mean(np.array(dice_trn)[
-                                                                                                                        :, 1].astype(float)),
-                                                                                                                np.mean(np.array(dice_val)[
-                                                                                                                        :, 1].astype(float)),))
+                                                                                                                np.nanmean(np.array(jaccard_trn)[
+                                                                                                                    :, 1].astype(float)),
+                                                                                                                np.nanmean(np.array(jaccard_val)[
+                                                                                                                    :, 1].astype(float)),
+                                                                                                                np.nanmean(np.array(dice_trn)[
+                                                                                                                    :, 1].astype(float)),
+                                                                                                                np.nanmean(np.array(dice_val)[
+                                                                                                                    :, 1].astype(float)),))

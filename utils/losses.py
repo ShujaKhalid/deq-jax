@@ -75,7 +75,7 @@ class Losses():
         ce_loss = jnp.mean(-jnp.sum(targets * logits, axis=-1))
         #l2_loss = -jnp.sum(logits - targets)
 
-        return ce_loss + dice_loss
+        return ce_loss
 
     def get_loss_fn(self):
         if (self.mode == "text"):

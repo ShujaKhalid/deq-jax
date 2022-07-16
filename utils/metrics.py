@@ -8,23 +8,34 @@ from tabulate import tabulate
 
 def dice_coeff(logits, y_ohe):
     n = np.bitwise_and(y_ohe, logits)
-    # u = np.bitwise_or(y_ohe, logits)
-    return 2*np.sum(n)/(y_ohe.sum()+logits.sum())
+    num = 2*np.sum(n)
+    den = y_ohe.sum()+logits.sum()
+
+    if (y_ohe.sum() != 0.0):
+        return num/den
+    else:
+        return np.nan
 
 
 def jaccard_score(logits, y_ohe, cls):
     n = np.bitwise_and(y_ohe, logits)
     u = np.bitwise_or(y_ohe, logits)
+    num = np.sum(n)
+    den = np.sum(u)
     # print("cls: {}".format(cls))
     # print("logits: {}/131072".format(logits.sum()))
     # print("y_ohe: {}/131072".format(y_ohe.sum()))
     # print("n: {}/131072".format(n.sum()))
     # print("u: {}/131072".format(u.sum()))
-    return np.sum(n)/np.sum(u)
-
+    if (y_ohe.sum() != 0.0):
+        return num/den
+    else:
+        return np.nan
 
 # Jaccard Index
 # IoU calculation summed over all classes
+
+
 def seg_metrics(params, rng, i, x_patch, x, y, ver, save_img_to_folder, forward_fn, config):
     logits = jax.jit(forward_fn.apply)(params, rng, data={
         'obs': x_patch, 'target': y})
@@ -79,15 +90,15 @@ def seg_metrics(params, rng, i, x_patch, x, y, ver, save_img_to_folder, forward_
         jaccard_classwise = {class_names[c]: np.array([jaccard_score(logits_bool[n, :, :, c], y_ohe_bool[n, :, :, c], class_names[c])
                                                        for n in range(bs)]) for c in range(classes)}
         # print(jaccard_classwise)
-        jaccard_overall = {class_names[i]: v[np.nonzero(v)].mean() if v[np.nonzero(v)].mean() == v[np.nonzero(v)].mean() else 0.0 for i, v in enumerate(list(
-            jaccard_classwise.values())) if np.mean(v) != 0 and v[np.nonzero(v)].mean() == v[np.nonzero(v)].mean()}
+        jaccard_overall = {class_names[i]: np.nanmean(v) for i, v in enumerate(list(
+            jaccard_classwise.values()))}
 
         # Dice coefficient
         dice_classwise = {class_names[c]: np.array([dice_coeff(logits_bool[n, :, :, c], y_ohe_bool[n, :, :, c])
                           for n in range(bs)])
                           for c in range(classes)}
-        dice_overall = {class_names[i]: v[np.nonzero(v)].mean() if v[np.nonzero(v)].mean() == v[np.nonzero(v)].mean() else 0.0 for i, v in enumerate(list(
-            dice_classwise.values())) if np.mean(v) != 0 and v[np.nonzero(v)].mean() == v[np.nonzero(v)].mean()}
+        dice_overall = {class_names[i]: np.nanmean(v) for i, v in enumerate(list(
+            dice_classwise.values()))}
 
     # IMPORTANT
     if (i % config["logging"]["save_imgs_step"] == 0):
