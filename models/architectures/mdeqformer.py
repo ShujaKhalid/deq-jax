@@ -65,6 +65,7 @@ class HeadDepth(hk.Module):
 class HeadSeg(hk.Module):
     def __init__(self, input_dims, resample_dim, patch_size, config, num_classes=2):
         super(HeadSeg, self).__init__()
+        self.config = config
         self.resample_dim = resample_dim
         self.num_classes = num_classes
         self.kernel_size = 3
@@ -86,8 +87,13 @@ class HeadSeg(hk.Module):
         #                           padding=[2, 2])
         # self.bn = hk.BatchNorm()
         self.transConv2D = hk.Conv2DTranspose(self.num_classes, kernel_shape=3)
-        self.interp = Interpolate(
-            scale_factor=int((480)/np.sqrt(self.resample_dim)))  # TODO
+
+        if (self.dataset == "VOCSegmentation"):
+            self.interp = Interpolate(scale_factor=1)
+        elif (self.dataset == "Cityscapes"):
+            self.interp = Interpolate(scale_factor=2)
+        else:
+            raise Exception("Interpolation factor not set for dataset...")
         # self.interp = hk.Conv2DTranspose(self.num_classes,
         #                                  kernel_shape=4,
         #                                  stride=1,
@@ -100,17 +106,17 @@ class HeadSeg(hk.Module):
         # print("x.shape (before patchify): {}".format(x.shape))
 
         #x = self.fc1(x)
-        x = u.unpatchify(x)
+        x = u.unpatchify(x, self.config)
         x = self.conv2d_1(x)
         x = self.relu(x)
         # x = self.conv2d_2(x)
         # x = self.relu(x)
         # x = self.conv2d_3(x)
         # x = self.relu(x)
-        # x = self.interp(x)  # replace with transConv if necessary
+        x = self.interp(x)
         if (self.transpose):
             x = self.transConv2D(x)
-            x = self.relu(x)
+            #x = self.relu(x)
         #x = self.sigmoid(x)
 
         return x

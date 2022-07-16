@@ -1,7 +1,7 @@
 {
     "mode": "seg",
     "logging": {
-        "eval_every": 2,
+        "eval_every": 10,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
@@ -30,7 +30,7 @@
             "dropout_rate": 0.1,
             "patch_size": 16,
             "scales": "[]",
-            "num_heads": 12,
+            "num_heads": 6,
             "depth": 6,
             "latent_dims": "[768, 768, 768]",
             "resample_dim": 768,

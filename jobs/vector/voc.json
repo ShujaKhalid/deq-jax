@@ -1,21 +1,21 @@
 {
-    "mode": "cls_trans",
+    "mode": "seg",
     "logging": {
-        "eval_every": 1,
+        "eval_every": 200,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
-        "log_every": 5,
+        "log_every": 10,
         "save_imgs_step": 5,
-        "trn_set": 15,
-        "tst_set": 10
+        "trn_set": 5,
+        "tst_set": 25
     },
     "data_attrs": {
-        "dataset_path": "/scratch/ssd002/home/skhalid/imagenet/",
-        "dataset": "CIFAR10",
+        "dataset_path": "/scratch/ssd002/home/skhalid/",
+        "dataset": "VOCSegmentation",
         "transform": "None",
-        "num_classes": 10
+        "num_classes": 20
     },
     "deq_attrs": {
         "deq_flag": "False",
@@ -23,17 +23,17 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 32,
+        "batch_size": 8,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,
             "dropout_rate": 0.1,
-            "patch_size": 4,
+            "patch_size": 16,
             "scales": "[]",
-            "num_heads": 8,
+            "num_heads": 12,
             "depth": 6,
-            "latent_dims": "[4096, 4096, 4096]",
-            "resample_dim": 4096,
+            "latent_dims": "[768, 768, 768]",
+            "resample_dim": 768,
             "transpose": "True"
         },
         "lm": {
@@ -49,12 +49,12 @@
         }
     },
     "opt_attrs": {
-        "max_steps": 10000,
+        "max_steps": 10,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.001,
+        "learning_rate": 0.0001,
         "b1": 0.9,
         "b2": 0.99
     },
-    "n_threads": 8
+    "n_threads": 4
 }

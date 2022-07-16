@@ -295,25 +295,32 @@ def preproc(x, config):
     return patched
 
 
-def unpatchify(patches):
+def unpatchify(patches, config):
     # patches = patches[:, :-1, :]
     # bsz, patches_qty, patches_dim = patches.shape
     # hgt = wdt = int(np.sqrt(patches_qty * (patch_size * patch_size)))
     # #cnl = patches_dim / patch_size**2
     # cnl = (patches_qty * patches_dim) // (hgt * wdt)
     # x = patches.reshape(bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
-    x = rearrange(patches, 'b (h w) (p1 p2 c) -> b c (h p1) (w p2)',
-                  h=30, w=30, p1=16, p2=16).transpose(0, 2, 3, 1)
+    ps = config["model_attrs"]["cv"]["patch_size"]
+    if (config["data_attrs"]["dataset"] == "VOCSegmentation"):
+        x = rearrange(patches, 'b (h w) (p1 p2 c) -> b c (h p1) (w p2)',
+                      h=30, w=30, p1=ps, p2=ps).transpose(0, 2, 3, 1)
+    elif (config["data_attrs"]["dataset"] == "Cityscapes"):
+        x = rearrange(patches, 'b (h w) (p1 p2 c) -> b c (h p1) (w p2)',
+                      h=32, w=64, p1=ps, p2=ps).transpose(0, 2, 3, 1)
+    else:
+        raise Exception("check unpatchify...")
 
-    # patches = patches[:, :, :]
-    # bsz, patches_qty, patches_dim = patches.shape
-    # base_factor = 1
-    # hgt = wdt = int(np.sqrt(patches_dim)) * base_factor
-    # wdt = wdt * base_factor
-    # cnl = (patches_qty) // (2**(base_factor+1))
-    # d_new = (cnl) * (2**(base_factor+1))
-    # x = patches[:bsz, :d_new, :patches_dim].reshape(
-    #     bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
+        # patches = patches[:, :, :]
+        # bsz, patches_qty, patches_dim = patches.shape
+        # base_factor = 1
+        # hgt = wdt = int(np.sqrt(patches_dim)) * base_factor
+        # wdt = wdt * base_factor
+        # cnl = (patches_qty) // (2**(base_factor+1))
+        # d_new = (cnl) * (2**(base_factor+1))
+        # x = patches[:bsz, :d_new, :patches_dim].reshape(
+        #     bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
 
     return x
 
