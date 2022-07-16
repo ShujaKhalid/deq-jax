@@ -1,5 +1,5 @@
 {
-    "mode": "seg",
+    "mode": "cls_trans",
     "logging": {
         "eval_every": 10,
         "checkpoint_dir": "/tmp/haiku-transformer",
@@ -13,7 +13,7 @@
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
-        "dataset": "VOCSegmentation",
+        "dataset": "CIFAR10",
         "transform": "None",
         "num_classes": 20
     },
