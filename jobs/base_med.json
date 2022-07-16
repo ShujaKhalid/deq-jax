@@ -1,7 +1,7 @@
 {
     "mode": "cls_trans",
     "logging": {
-        "eval_every": 10,
+        "eval_every": 1,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
@@ -9,13 +9,13 @@
         "log_every": 10,
         "save_imgs_step": 5,
         "trn_set": 5,
-        "tst_set": 35
+        "tst_set": 10
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
-        "dataset": "CIFAR10",
+        "dataset": "ImageNet",
         "transform": "None",
-        "num_classes": 10
+        "num_classes": 1000
     },
     "deq_attrs": {
         "deq_flag": "False",
@@ -23,7 +23,7 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 2048,
+        "batch_size": 1024,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,
@@ -49,7 +49,7 @@
         }
     },
     "opt_attrs": {
-        "max_steps": 10000,
+        "max_steps": 100000,
         "epochs": 10000,
         "grad_clip_value": 1,
         "learning_rate": 0.001,

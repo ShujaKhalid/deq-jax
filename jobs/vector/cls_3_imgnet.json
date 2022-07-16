@@ -6,16 +6,16 @@
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
-        "log_every": 5,
+        "log_every": 10,
         "save_imgs_step": 5,
-        "trn_set": 15,
+        "trn_set": 10,
         "tst_set": 10
     },
     "data_attrs": {
         "dataset_path": "/scratch/ssd002/home/skhalid/imagenet/",
-        "dataset": "CIFAR10",
+        "dataset": "ImageNet",
         "transform": "None",
-        "num_classes": 10
+        "num_classes": 1000
     },
     "deq_attrs": {
         "deq_flag": "False",

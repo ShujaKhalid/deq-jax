@@ -62,6 +62,8 @@ def seg_metrics(params, rng, i, x_patch, x, y, ver, save_img_to_folder, forward_
     elif (config["data_attrs"]["dataset"] == "MNIST"):
         class_names = ['1', '2', '3', '4', '5',
                        '6', '7', '8', '9']
+    elif (config["data_attrs"]["dataset"] == "ImageNet"):
+        class_names = [str(v) for v in range(1000)]
         # IoU
         # logits_red = jnp.argmax(logits, axis=-1)
         # y_red = jnp.argmax(y, axis=-1)

@@ -167,8 +167,8 @@ class Datasets():
         def make_jax_friendly(pic):
             transform_imagenet_friendly = transforms.Compose(
                 [
-                    transforms.Resize(256),
-                    transforms.CenterCrop(224),
+                    transforms.Resize(64),
+                    transforms.CenterCrop(32),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
                         0.229, 0.224, 0.225])

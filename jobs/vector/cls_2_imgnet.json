@@ -1,21 +1,21 @@
 {
     "mode": "cls_trans",
     "logging": {
-        "eval_every": 10,
+        "eval_every": 1,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
-        "log_every": 5,
+        "log_every": 10,
         "save_imgs_step": 5,
-        "trn_set": 15,
+        "trn_set": 10,
         "tst_set": 10
     },
     "data_attrs": {
         "dataset_path": "/scratch/ssd002/home/skhalid/imagenet/",
-        "dataset": "CIFAR10",
+        "dataset": "ImageNet",
         "transform": "None",
-        "num_classes": 10
+        "num_classes": 1000
     },
     "deq_attrs": {
         "deq_flag": "False",
@@ -23,17 +23,17 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 1024,
+        "batch_size": 512,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,
-            "dropout_rate": 0.2,
+            "dropout_rate": 0.1,
             "patch_size": 4,
             "scales": "[]",
             "num_heads": 8,
-            "depth": 4,
-            "latent_dims": "[512, 512, 512]",
-            "resample_dim": 512,
+            "depth": 6,
+            "latent_dims": "[128, 128, 128]",
+            "resample_dim": 128,
             "transpose": "True"
         },
         "lm": {
@@ -56,5 +56,5 @@
         "b1": 0.9,
         "b2": 0.99
     },
-    "n_threads": 4
+    "n_threads": 8
 }
