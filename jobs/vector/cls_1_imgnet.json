@@ -6,10 +6,11 @@
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
-        "log_every": 10,
+        "log_every": 1000,
         "save_imgs_step": 5,
         "trn_set": 10,
-        "tst_set": 10
+        "tst_set": 10,
+        "checkpoint_every_n": 10000
     },
     "data_attrs": {
         "dataset_path": "/scratch/ssd002/home/skhalid/imagenet/",
@@ -23,7 +24,7 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 512,
+        "batch_size": 8,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,

@@ -89,7 +89,7 @@ class HeadSeg(hk.Module):
         self.transConv2D = hk.Conv2DTranspose(self.num_classes, kernel_shape=3)
 
         if (self.dataset == "VOCSegmentation"):
-            self.interp = Interpolate(scale_factor=1)
+            self.interp = Interpolate(scale_factor=4)
         elif (self.dataset == "Cityscapes"):
             self.interp = Interpolate(scale_factor=2)
         else:
@@ -116,7 +116,7 @@ class HeadSeg(hk.Module):
         x = self.interp(x)
         if (self.transpose):
             x = self.transConv2D(x)
-            #x = self.relu(x)
+            x = self.relu(x)
         #x = self.sigmoid(x)
 
         return x

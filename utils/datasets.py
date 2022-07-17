@@ -205,7 +205,8 @@ class Datasets():
             #     ])
             transform_voc_friendly = transforms.Compose(
                 [
-                    transforms.Resize((480, 480)),
+                    # transforms.RandomCrop(32, padding=4),
+                    transforms.Resize((120, 120)),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[
                         0.5, 0.5, 0.5])

@@ -182,6 +182,8 @@ def main(config):
     print(ds_dict['ds_trn'])
     print(ds_dict['ds_tst'])
 
+    checkpoint_every_n = config["logging"]["checkpoint_every_n"]
+
     # Setup the forward pass
     build_forward_fn = Forward(config).build_forward_fn
     forward_fn = hk.transform(build_forward_fn())
@@ -209,7 +211,8 @@ def main(config):
     # )
 
     updater = Updater(forward_fn.init, loss_fn, optimizer)
-    updater = CheckpointingUpdater(updater, config["checkpoint_dir"])
+    updater = CheckpointingUpdater(
+        updater, config["checkpoint_dir"], checkpoint_every_n)
 
     # Initialize parameters.
     rng = jax.random.PRNGKey(428)

@@ -302,13 +302,15 @@ def unpatchify(patches, config):
     # #cnl = patches_dim / patch_size**2
     # cnl = (patches_qty * patches_dim) // (hgt * wdt)
     # x = patches.reshape(bsz, cnl, hgt, wdt).transpose(0, 2, 3, 1)
-    ps = config["model_attrs"]["cv"]["patch_size"]
+    patches_size = config["model_attrs"]["cv"]["patch_size"]
+    _, patches_qty, _ = patches.shape
+    h = w = int(np.sqrt(patches_qty))
     if (config["data_attrs"]["dataset"] == "VOCSegmentation"):
         x = rearrange(patches, 'b (h w) (p1 p2 c) -> b c (h p1) (w p2)',
-                      h=30, w=30, p1=ps, p2=ps).transpose(0, 2, 3, 1)
+                      h=h, w=w, p1=patches_size, p2=patches_size).transpose(0, 2, 3, 1)
     elif (config["data_attrs"]["dataset"] == "Cityscapes"):
         x = rearrange(patches, 'b (h w) (p1 p2 c) -> b c (h p1) (w p2)',
-                      h=32, w=64, p1=ps, p2=ps).transpose(0, 2, 3, 1)
+                      h=32, w=64, p1=patches_size, p2=patches_size).transpose(0, 2, 3, 1)
     else:
         raise Exception("check unpatchify...")
 
