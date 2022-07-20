@@ -73,14 +73,14 @@ class HeadSeg(hk.Module):
         self.dataset = config["data_attrs"]["dataset"]
         self.transpose = eval(config["model_attrs"]["cv"]["transpose"])
         self.fc1 = hk.Linear(self.resample_dim)
-        self.conv2d_1 = hk.Conv2D(self.num_classes,
+        self.conv2d_1 = hk.Conv2D(self.num_classes * 8,
                                   kernel_shape=self.kernel_size,
                                   stride=1,
                                   padding=[1, 1])
-        # self.conv2d_2 = hk.Conv2D(self.resample_dim // 4,
-        #                           kernel_shape=self.kernel_size,
-        #                           stride=1,
-        #                           padding=[0, 0])
+        self.conv2d_2 = hk.Conv2D(self.resample_dim // 4,
+                                  kernel_shape=1,
+                                  stride=1,
+                                  padding=[0, 0])
         # self.conv2d_3 = hk.Conv2D(self.num_classes,
         #                           kernel_shape=self.kernel_size,
         #                           stride=1,
@@ -89,9 +89,9 @@ class HeadSeg(hk.Module):
         self.transConv2D = hk.Conv2DTranspose(self.num_classes, kernel_shape=3)
 
         if (self.dataset == "VOCSegmentation"):
-            self.interp = Interpolate(scale_factor=4)
+            self.interp = Interpolate(scale_factor=1)
         elif (self.dataset == "Cityscapes"):
-            self.interp = Interpolate(scale_factor=2)
+            self.interp = Interpolate(scale_factor=1)
         else:
             raise Exception("Interpolation factor not set for dataset...")
         # self.interp = hk.Conv2DTranspose(self.num_classes,
@@ -109,8 +109,8 @@ class HeadSeg(hk.Module):
         x = u.unpatchify(x, self.config)
         x = self.conv2d_1(x)
         x = self.relu(x)
-        # x = self.conv2d_2(x)
-        # x = self.relu(x)
+        x = self.conv2d_2(x)
+        x = self.relu(x)
         # x = self.conv2d_3(x)
         # x = self.relu(x)
         x = self.interp(x)

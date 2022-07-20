@@ -310,7 +310,7 @@ def unpatchify(patches, config):
                       h=h, w=w, p1=patches_size, p2=patches_size).transpose(0, 2, 3, 1)
     elif (config["data_attrs"]["dataset"] == "Cityscapes"):
         x = rearrange(patches, 'b (h w) (p1 p2 c) -> b c (h p1) (w p2)',
-                      h=32, w=64, p1=patches_size, p2=patches_size).transpose(0, 2, 3, 1)
+                      h=h, w=w, p1=patches_size, p2=patches_size).transpose(0, 2, 3, 1)
     else:
         raise Exception("check unpatchify...")
 

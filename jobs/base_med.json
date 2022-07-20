@@ -1,21 +1,22 @@
 {
-    "mode": "seg",
+    "mode": "cls_trans",
     "logging": {
-        "eval_every": 25,
+        "eval_every": 20,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
         "log_every": 10,
         "save_imgs_step": 5,
-        "trn_set": 50000,
-        "tst_set": 10000
+        "trn_set": 20,
+        "tst_set": 100,
+        "checkpoint_every_n": 1000
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
-        "dataset": "VOCSegmentation",
+        "dataset": "CIFAR10",
         "transform": "None",
-        "num_classes": 20
+        "num_classes": 10
     },
     "deq_attrs": {
         "deq_flag": "False",
@@ -27,10 +28,10 @@
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,
-            "dropout_rate": 0.1,
+            "dropout_rate": 0.2,
             "patch_size": 4,
             "scales": "[]",
-            "num_heads": 12,
+            "num_heads": 16,
             "depth": 6,
             "latent_dims": "[512, 512, 512]",
             "resample_dim": 512,
@@ -52,9 +53,9 @@
         "max_steps": 10000,
         "epochs": 10000,
         "grad_clip_value": 1,
-        "learning_rate": 0.001,
+        "learning_rate": 0.0001,
         "b1": 0.9,
         "b2": 0.99
     },
-    "n_threads": 4
+    "n_threads": 1
 }

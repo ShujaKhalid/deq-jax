@@ -6,8 +6,12 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 
+
+import jax
 import numpy as np
 import jax.numpy as jnp
+
+from skimage.transform import resize
 
 import utils.dataset as dataset
 
@@ -144,22 +148,40 @@ class Datasets():
                 # REALLY IMPORTANT TO NOT USE TOTENSOR HERE!!!
                 # This is a target mask...
                 [
-                    transforms.Resize((480, 480)),
+                    transforms.Resize((64, 64)),
+                    # transforms.RandomHorizontalFlip(0.5)
+                    # transforms.ColorJitter(),
+                    # transforms.RandomGrayscale(p=0.5),
+                    # transforms.ToTensor(),
+                ])
+            transform_cityscapes_friendly = transforms.Compose(
+                # REALLY IMPORTANT TO NOT USE TOTENSOR HERE!!!
+                # This is a target mask...
+                [
+                    transforms.Resize((256, 256)),
+                    # transforms.RandomHorizontalFlip(0.5)
+                    # transforms.ColorJitter(),
+                    # transforms.RandomGrayscale(p=0.5),
                     # transforms.ToTensor(),
                 ])
 
             if (self.dataset_name == "VOCSegmentation"):
-                pic = transform_voc_friendly(pic)
-                pic = np.array(pic)
+
+                #pic_arr = np.array(pic)
+                #print("\nnp.unique(pic)_before: {}".format(np.unique(pic_arr)))
+
+                pic = np.squeeze(transform_voc_friendly(pic))
                 # print(np.unique(pic))
+
             if (self.dataset_name == "Cityscapes"):
+                pic = np.squeeze(transform_cityscapes_friendly(pic))
+                pic = np.array(pic)
                 for key in CITYSCAPES_MAPPING:
-                    pic = np.array(pic)
                     pic[pic == key] = CITYSCAPES_MAPPING[key]
                 # print(np.unique(pic))
                 # pic = pic
 
-            return np.array(pic, jnp.float32)
+            return pic
 
         '''
         TRAINING
@@ -167,8 +189,8 @@ class Datasets():
         def make_jax_friendly(pic):
             transform_imagenet_friendly = transforms.Compose(
                 [
-                    transforms.Resize(64),
-                    transforms.CenterCrop(32),
+                    transforms.Resize((112, 112)),
+                    # transforms.CenterCrop(64),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
                         0.229, 0.224, 0.225])
@@ -177,7 +199,6 @@ class Datasets():
                 [
                     transforms.RandomCrop(32, padding=4),
                     transforms.Resize(32),
-                    # transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                     transforms.Normalize(
                         (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
@@ -190,7 +211,7 @@ class Datasets():
                 ])
             transform_cityscapes_friendly = transforms.Compose(
                 [
-                    transforms.Resize((512)),
+                    transforms.Resize((256, 256)),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
                         0.229, 0.224, 0.225])
@@ -203,16 +224,28 @@ class Datasets():
             #         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
             #             0.229, 0.224, 0.225])
             #     ])
+            # transform_voc_friendly = transforms.Compose(
+            #     [
+            #         # transforms.RandomCrop(32, padding=4),
+            #         transforms.Resize((120, 120)),
+            #         transforms.ToTensor(),
+            #         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[
+            #             0.5, 0.5, 0.5])
+            #     ])
             transform_voc_friendly = transforms.Compose(
                 [
                     # transforms.RandomCrop(32, padding=4),
-                    transforms.Resize((120, 120)),
+                    transforms.Resize((64, 64)),
+                    transforms.ColorJitter(),
+                    transforms.RandomGrayscale(p=0.5),
+                    # transforms.RandomHorizontalFlip(0.5),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[
                         0.5, 0.5, 0.5])
                 ])
 
             if (self.dataset_name == "ImageNet"):
+                # print("np.array(pic).shape: {}".format(np.array(pic).shape))
                 pic = transform_imagenet_friendly(pic)
 
             if (self.dataset_name == "CIFAR10"):

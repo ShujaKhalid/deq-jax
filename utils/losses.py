@@ -61,15 +61,15 @@ class Losses():
         print("logits.shape: {} - targets.shape: {}".format(logits.shape, targets.shape))
         assert logits.shape == targets.shape
 
-        # dice loss
-        xt = logits != 0
-        yt = targets != 0
-        num = jnp.sum(jnp.logical_xor(
-            xt, yt).astype(jnp.int32))
-        denom = jnp.sum(jnp.logical_or(jnp.logical_and(
-            xt, yt), jnp.logical_xor(xt, yt)).astype(jnp.int32))
-        dice_loss = 1-jnp.where(denom == 0, 0.0,
-                                num.astype(jnp.float32) / denom)
+        # # dice loss
+        # xt = logits != 0
+        # yt = targets != 0
+        # num = jnp.sum(jnp.logical_xor(
+        #     xt, yt).astype(jnp.int32))
+        # denom = jnp.sum(jnp.logical_or(jnp.logical_and(
+        #     xt, yt), jnp.logical_xor(xt, yt)).astype(jnp.int32))
+        # dice_loss = 1-jnp.where(denom == 0, 0.0,
+        #                         num.astype(jnp.float32) / denom)
 
         # ce loss
         ce_loss = jnp.mean(-jnp.sum(targets * logits, axis=-1))
