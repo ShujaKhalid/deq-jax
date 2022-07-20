@@ -1,7 +1,7 @@
 {
     "mode": "cls_trans",
     "logging": {
-        "eval_every": 20,
+        "eval_every": 2,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",

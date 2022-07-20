@@ -123,10 +123,12 @@ class CheckpointingUpdater:
     def __init__(self,
                  inner: Updater,
                  checkpoint_dir: str,
-                 checkpoint_every_n: int = 1000):
+                 checkpoint_every_n: int = 1000,
+                 num_classes: int = 10):
         self._inner = inner
         self._checkpoint_dir = checkpoint_dir
         self._checkpoint_every_n = checkpoint_every_n
+        self.num_classes = num_classes
 
     def _checkpoint_paths(self):
         return [p for p in os.listdir(self._checkpoint_dir) if 'checkpoint_' in p]
@@ -143,6 +145,16 @@ class CheckpointingUpdater:
             logging.info('Loading checkpoint from %s', checkpoint)
             with open(checkpoint, 'rb') as f:
                 state = pickle.load(f)
+
+            # FIXME - find a better and cleaner way to do this...
+            # Add gaussian initialization?
+            state["params"]["lifted_1/linear"]["w"] = state["params"]["lifted_1/linear"]["w"][:, :self.num_classes]
+            state["params"]["lifted_1/linear"]["b"] = state["params"]["lifted_1/linear"]["b"][:self.num_classes]
+            state["opt_state"][1][0][1]["lifted_1/linear"]["w"] = state["opt_state"][1][0][1]["lifted_1/linear"]["w"][:, :self.num_classes]
+            state["opt_state"][1][0][1]["lifted_1/linear"]["b"] = state["opt_state"][1][0][1]["lifted_1/linear"]["b"][:self.num_classes]
+            state["opt_state"][1][0][2]["lifted_1/linear"]["w"] = state["opt_state"][1][0][2]["lifted_1/linear"]["w"][:, :self.num_classes]
+            state["opt_state"][1][0][2]["lifted_1/linear"]["b"] = state["opt_state"][1][0][2]["lifted_1/linear"]["b"][:self.num_classes]
+
             return state
 
     def update(self, state, data):
@@ -212,7 +224,7 @@ def main(config):
 
     updater = Updater(forward_fn.init, loss_fn, optimizer)
     updater = CheckpointingUpdater(
-        updater, config["checkpoint_dir"], checkpoint_every_n)
+        updater, config["checkpoint_dir"], checkpoint_every_n, num_classes=config["data_attrs"]["num_classes"])
 
     # Initialize parameters.
     rng = jax.random.PRNGKey(428)
