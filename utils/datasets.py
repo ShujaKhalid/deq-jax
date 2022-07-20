@@ -189,7 +189,7 @@ class Datasets():
         def make_jax_friendly(pic):
             transform_imagenet_friendly = transforms.Compose(
                 [
-                    transforms.Resize((112, 112)),
+                    transforms.Resize((224, 224)),
                     # transforms.CenterCrop(64),
                     transforms.ToTensor(),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
@@ -274,7 +274,7 @@ class Datasets():
         def make_jax_friendly_val(pic):
             transform_cifar10_friendly = transforms.Compose(
                 [
-                    transforms.Resize(32),
+                    transforms.Resize(112),
                     transforms.ToTensor(),
                     transforms.Normalize(
                         (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
