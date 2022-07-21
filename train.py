@@ -122,6 +122,7 @@ class CheckpointingUpdater:
 
     def __init__(self,
                  inner: Updater,
+                 config: dict,
                  checkpoint_dir: str,
                  checkpoint_every_n: int = 1000,
                  num_classes: int = 10):
@@ -129,6 +130,7 @@ class CheckpointingUpdater:
         self._checkpoint_dir = checkpoint_dir
         self._checkpoint_every_n = checkpoint_every_n
         self.num_classes = num_classes
+        self.config = config
 
     def _checkpoint_paths(self):
         return [p for p in os.listdir(self._checkpoint_dir) if 'checkpoint_' in p]
@@ -146,14 +148,78 @@ class CheckpointingUpdater:
             with open(checkpoint, 'rb') as f:
                 state = pickle.load(f)
 
+            hgt = wdt = 64
+            patch_size = self.config["model_attrs"]["cv"]["patch_size"]
+            patch_qty = (hgt*wdt)//(patch_size**2)
+            resample_dim = self.config["model_attrs"]["cv"]["resample_dim"]
+            # embedding = np.random.normal(
+            #    0, 1, size=(1, patch_qty+1, resample_dim))
+            embedding = np.ones((1, patch_qty+1, resample_dim))
+
+            state["params"]["lifted/transformer"]["embed_pos"] = embedding
+            state["opt_state"][1][0][1]["lifted/transformer"]["embed_pos"] = embedding
+            state["opt_state"][1][0][2]["lifted/transformer"]["embed_pos"] = embedding
             # FIXME - find a better and cleaner way to do this...
             # Add gaussian initialization?
-            state["params"]["lifted_1/linear"]["w"] = state["params"]["lifted_1/linear"]["w"][:, :self.num_classes]
-            state["params"]["lifted_1/linear"]["b"] = state["params"]["lifted_1/linear"]["b"][:self.num_classes]
-            state["opt_state"][1][0][1]["lifted_1/linear"]["w"] = state["opt_state"][1][0][1]["lifted_1/linear"]["w"][:, :self.num_classes]
-            state["opt_state"][1][0][1]["lifted_1/linear"]["b"] = state["opt_state"][1][0][1]["lifted_1/linear"]["b"][:self.num_classes]
-            state["opt_state"][1][0][2]["lifted_1/linear"]["w"] = state["opt_state"][1][0][2]["lifted_1/linear"]["w"][:, :self.num_classes]
-            state["opt_state"][1][0][2]["lifted_1/linear"]["b"] = state["opt_state"][1][0][2]["lifted_1/linear"]["b"][:self.num_classes]
+            if (self.config["mode"] == "cls_trans"):
+                state["params"]["lifted_1/linear"]["w"] = state["params"]["lifted_1/linear"]["w"][:, :self.num_classes]
+                state["params"]["lifted_1/linear"]["b"] = state["params"]["lifted_1/linear"]["b"][:self.num_classes]
+                state["opt_state"][1][0][1]["lifted_1/linear"]["w"] = state["opt_state"][1][0][1]["lifted_1/linear"]["w"][:, :self.num_classes]
+                state["opt_state"][1][0][1]["lifted_1/linear"]["b"] = state["opt_state"][1][0][1]["lifted_1/linear"]["b"][:self.num_classes]
+                state["opt_state"][1][0][2]["lifted_1/linear"]["w"] = state["opt_state"][1][0][2]["lifted_1/linear"]["w"][:, :self.num_classes]
+                state["opt_state"][1][0][2]["lifted_1/linear"]["b"] = state["opt_state"][1][0][2]["lifted_1/linear"]["b"][:self.num_classes]
+            elif (self.config["mode"] == "seg"):
+                # Initialize parameters
+                state["params"]["lifted_1/head_seg/~/conv2_d"] = {
+                    "w": 0, "b": 0}
+                state["params"]["lifted_1/head_seg/~/conv2_d_1"] = {
+                    "w": 0, "b": 0}
+                state["params"]["lifted_1/head_seg/~/conv2_d"]["w"] = np.random.normal(
+                    0, 0.1, size=(3, 3, 32, 160))
+                state["params"]["lifted_1/head_seg/~/conv2_d"]["b"] = np.random.normal(
+                    0, 0.1, size=(160))
+                state["params"]["lifted_1/head_seg/~/conv2_d_1"]["w"] = np.random.normal(
+                    0, 0.1, size=(1, 1, 160, 128))
+                state["params"]["lifted_1/head_seg/~/conv2_d_1"]["b"] = np.random.normal(
+                    0, 0.1, size=(128))
+                if (self.config["model_attrs"]["cv"]["transpose"] == "True"):
+                    state["params"]["lifted_1/head_seg/~/conv2_d_transpose"] = {
+                        "w": 0, "b": 0}
+                    state["params"]["lifted_1/head_seg/~/conv2_d_transpose"]["w"] = np.ones(
+                        (3, 3, 20, 128))
+                    state["params"]["lifted_1/head_seg/~/conv2_d_transpose"]["b"] = np.ones(
+                        (20))
+
+                # Initialize opt_state
+                state["opt_state"][1][0][1]["lifted_1/head_seg/~/conv2_d"] = {
+                    "w": 0, "b": 0}
+                state["opt_state"][1][0][2]["lifted_1/head_seg/~/conv2_d"] = {
+                    "w": 0, "b": 0}
+                state["opt_state"][1][0][1]["lifted_1/head_seg/~/conv2_d_1"] = {
+                    "w": 0, "b": 0}
+                state["opt_state"][1][0][2]["lifted_1/head_seg/~/conv2_d_1"] = {
+                    "w": 0, "b": 0}
+                state["opt_state"][1][0][1]["lifted_1/head_seg/~/conv2_d"]["w"] = np.ones(
+                    (3, 3, 32, 160))
+                state["opt_state"][1][0][2]["lifted_1/head_seg/~/conv2_d"]["b"] = np.ones(
+                    (160))
+                state["opt_state"][1][0][1]["lifted_1/head_seg/~/conv2_d_1"]["w"] = np.ones(
+                    (1, 1, 160, 128))
+                state["opt_state"][1][0][2]["lifted_1/head_seg/~/conv2_d_1"]["b"] = np.ones(
+                    (128))
+
+                if (self.config["model_attrs"]["cv"]["transpose"] == "True"):
+                    state["opt_state"][1][0][1]["lifted_1/head_seg/~/conv2_d_transpose"] = {
+                        "w": 0, "b": 0}
+                    state["opt_state"][1][0][2]["lifted_1/head_seg/~/conv2_d_transpose"] = {
+                        "w": 0, "b": 0}
+                    state["opt_state"][1][0][1]["lifted_1/head_seg/~/conv2_d_transpose"]["w"] = np.ones(
+                        (3, 3, 20, 128))
+                    state["opt_state"][1][0][2]["lifted_1/head_seg/~/conv2_d_transpose"]["b"] = np.ones(
+                        (20))
+
+            else:
+                raise Exception("Check checkpointer...")
 
             return state
 
@@ -224,7 +290,7 @@ def main(config):
 
     updater = Updater(forward_fn.init, loss_fn, optimizer)
     updater = CheckpointingUpdater(
-        updater, config["checkpoint_dir"], checkpoint_every_n, num_classes=config["data_attrs"]["num_classes"])
+        updater, config, config["checkpoint_dir"], checkpoint_every_n, num_classes=config["data_attrs"]["num_classes"])
 
     # Initialize parameters.
     rng = jax.random.PRNGKey(428)

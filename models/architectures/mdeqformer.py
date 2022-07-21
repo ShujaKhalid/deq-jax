@@ -91,7 +91,7 @@ class HeadSeg(hk.Module):
         if (self.dataset == "VOCSegmentation"):
             self.interp = Interpolate(scale_factor=1)
         elif (self.dataset == "Cityscapes"):
-            self.interp = Interpolate(scale_factor=1)
+            self.interp = Interpolate(scale_factor=4)
         else:
             raise Exception("Interpolation factor not set for dataset...")
         # self.interp = hk.Conv2DTranspose(self.num_classes,

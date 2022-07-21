@@ -1,22 +1,22 @@
 {
-    "mode": "cls_trans",
+    "mode": "seg",
     "logging": {
-        "eval_every": 10,
+        "eval_every": 1,
         "checkpoint_dir": "/tmp/haiku-transformer",
         "logdir": "./logs/",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
         "log_every": 10,
         "save_imgs_step": 5,
-        "trn_set": 20,
-        "tst_set": 100,
-        "checkpoint_every_n": 1000
+        "trn_set": 3,
+        "tst_set": 3,
+        "checkpoint_every_n": 10000
     },
     "data_attrs": {
         "dataset_path": "/home/skhalid/Documents/datalake/",
-        "dataset": "ImageNet",
+        "dataset": "Cityscapes",
         "transform": "None",
-        "num_classes": 1000
+        "num_classes": 20
     },
     "deq_attrs": {
         "deq_flag": "False",
@@ -24,17 +24,17 @@
         "solver": 0
     },
     "model_attrs": {
-        "batch_size": 4,
+        "batch_size": 32,
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,
             "dropout_rate": 0.2,
             "patch_size": 4,
             "scales": "[]",
-            "num_heads": 10,
-            "depth": 5,
-            "latent_dims": "[1024, 1024, 1024]",
-            "resample_dim": 1024,
+            "num_heads": 16,
+            "depth": 6,
+            "latent_dims": "[512, 512, 512]",
+            "resample_dim": 512,
             "transpose": "True"
         },
         "lm": {
@@ -57,5 +57,5 @@
         "b1": 0.9,
         "b2": 0.99
     },
-    "n_threads": 1
+    "n_threads": 8
 }
