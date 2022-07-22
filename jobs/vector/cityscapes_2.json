@@ -19,7 +19,7 @@
         "num_classes": 20
     },
     "deq_attrs": {
-        "deq_flag": "False",
+        "deq_flag": "True",
         "max_iter": 10,
         "solver": 0
     },
@@ -33,7 +33,7 @@
             "patch_size": 4,
             "scales": "[]",
             "num_heads": 16,
-            "depth": 12,
+            "depth": 1,
             "latent_dims": "[512, 512, 512]",
             "resample_dim": 512,
             "transpose": "True"

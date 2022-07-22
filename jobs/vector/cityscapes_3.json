@@ -29,11 +29,11 @@
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,
-            "dropout_rate": 0.2,
+            "dropout_rate": 0.1,
             "patch_size": 4,
             "scales": "[]",
             "num_heads": 16,
-            "depth": 20,
+            "depth": 1,
             "latent_dims": "[512, 512, 512]",
             "resample_dim": 512,
             "transpose": "True"

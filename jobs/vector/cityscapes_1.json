@@ -33,7 +33,7 @@
             "patch_size": 4,
             "scales": "[]",
             "num_heads": 12,
-            "depth": 6,
+            "depth": 1,
             "latent_dims": "[512, 512, 512]",
             "resample_dim": 512,
             "transpose": "True"
