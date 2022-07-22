@@ -25,7 +25,7 @@
     },
     "model_attrs": {
         "batch_size": 4,
-        "pretrained": "True",
+        "pretrained": "False",
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,
