@@ -10,7 +10,7 @@
         "save_imgs_step": 5,
         "trn_set": 20,
         "tst_set": 100,
-        "checkpoint_every_n": 1000
+        "checkpoint_every_n": 10000
     },
     "data_attrs": {
         "dataset_path": "/scratch/ssd002/home/skhalid/imagenet/",
@@ -25,6 +25,7 @@
     },
     "model_attrs": {
         "batch_size": 4,
+        "pretrained": "True",
         "cv": {
             "arch": "mdeqformer",
             "num_layers": 0,
