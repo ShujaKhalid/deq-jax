@@ -3,7 +3,7 @@
     "logging": {
         "eval_every": 20,
         "checkpoint_dir": "/tmp/haiku-transformer",
-        "logdir": "./logs/",
+        "logdir": "./logs/city1",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
         "log_every": 10,
@@ -32,7 +32,7 @@
             "dropout_rate": 0.2,
             "patch_size": 4,
             "scales": "[]",
-            "num_heads": 16,
+            "num_heads": 12,
             "depth": 6,
             "latent_dims": "[512, 512, 512]",
             "resample_dim": 512,

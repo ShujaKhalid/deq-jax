@@ -149,7 +149,7 @@ class CheckpointingUpdater:
                 state = pickle.load(f)
 
             if (self.config["model_attrs"]["pretrained"] == "True"):
-                hgt = wdt = 64
+                hgt = wdt = 128
                 patch_size = self.config["model_attrs"]["cv"]["patch_size"]
                 patch_qty = (hgt*wdt)//(patch_size**2)
                 resample_dim = self.config["model_attrs"]["cv"]["resample_dim"]
@@ -249,8 +249,9 @@ def main(config):
     if ("datalake" in config["data_attrs"]["dataset_path"]):
         config["checkpoint_dir"] = config["logging"]["logdir"] + "/test/"
     else:
-        config["checkpoint_dir"] = config["logging"]["logdir"] + \
-            str(int(time.time_ns()/1000)) + "/"
+        # config["checkpoint_dir"] = config["logging"]["logdir"] + \
+        #     str(int(time.time_ns()/1000)) + "/"
+        config["checkpoint_dir"] = config["logging"]["logdir"] + "/"
 
     # Save a snapshot of the code to the checkpoint directory
     os.system("mkdir -p "+config["checkpoint_dir"])

@@ -3,7 +3,7 @@
     "logging": {
         "eval_every": 20,
         "checkpoint_dir": "/tmp/haiku-transformer",
-        "logdir": "./logs/",
+        "logdir": "./logs/city3",
         "log_policy": "[\"valid\", \"train\"]",
         "log": "False",
         "log_every": 10,
